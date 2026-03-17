@@ -146,8 +146,14 @@ struct RecordingView: View {
             Group {
                 if mode == .system {
                     if systemRecorder.isAvailable {
-                        Label("录制系统声音 + 麦克风", systemImage: "speaker.wave.2.fill")
-                            .foregroundStyle(.purple)
+                        VStack(spacing: 4) {
+                            Label("录制系统声音 + 麦克风", systemImage: "speaker.wave.2.fill")
+                                .foregroundStyle(.purple)
+                            if !systemRecorder.isAppGroupConfigured {
+                                Label("App Group 未配置，音频可能无法保存", systemImage: "exclamationmark.triangle")
+                                    .foregroundStyle(.orange)
+                            }
+                        }
                     } else {
                         Label("当前设备不支持内录", systemImage: "exclamationmark.triangle")
                             .foregroundStyle(.orange)

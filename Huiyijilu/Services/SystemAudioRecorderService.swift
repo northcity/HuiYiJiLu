@@ -11,6 +11,7 @@ import Foundation
 import ReplayKit
 import AVFoundation
 import Combine
+import ActivityKit
 
 /// Manages the ReplayKit Broadcast Extension lifecycle.
 /// The extension writes audio to the App Group shared container;
@@ -28,13 +29,14 @@ class SystemAudioRecorderService: NSObject, ObservableObject {
     static let appGroupID = "group.com.ceshi.ceshimainapp"
     static let audioFileName = "broadcast_recording.m4a"
     static let recordingFlagFile = "is_recording"
-    /// Must match the value in HuiyijiluBroadcast target's bundle id
-    static let broadcastExtensionBundleID = "com.ceshi.ceshimainapp.HuiyijiluBroadcast"
+    /// Must match the value in HuiyijiluBroadcast target's bundle id in .pbxproj
+    static let broadcastExtensionBundleID = "com.ceshi.ceshimainapp.widget"
 
     // MARK: - Internal
     private var timer: Timer?
     private var startDate: Date?
     private(set) var currentFileName: String = ""
+    private var liveActivity: Activity<RecordingAttributes>?
 
     private var sharedContainerURL: URL? {
         FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: Self.appGroupID)
@@ -53,8 +55,13 @@ class SystemAudioRecorderService: NSObject, ObservableObject {
         return docs.appendingPathComponent("Recordings")
     }
 
-    /// Whether app group is accessible (false on simulator without entitlements)
-    var isAvailable: Bool { sharedContainerURL != nil }
+    /// Whether the device supports screen recording (ReplayKit).
+    /// Uses RPScreenRecorder system check — NOT app-group availability.
+    var isAvailable: Bool { RPScreenRecorder.shared().isAvailable }
+
+    /// Whether the App Group shared container is accessible.
+    /// If false, the broadcast extension can start but cannot save audio.
+    var isAppGroupConfigured: Bool { sharedContainerURL != nil }
 
     private func log(_ msg: String) { print("[SystemRec] \(msg)") }
 
@@ -62,6 +69,13 @@ class SystemAudioRecorderService: NSObject, ObservableObject {
 
     override init() {
         super.init()
+        log("Device supports recording: \(RPScreenRecorder.shared().isAvailable)")
+        log("App Group configured: \(sharedContainerURL != nil)")
+        if let url = sharedContainerURL {
+            log("Shared container: \(url.path)")
+        } else {
+            log("⚠️ App Group container NOT accessible — 请在 Apple Developer Portal 配置 App Group")
+        }
         // Register for Darwin notifications from the broadcast extension
         registerDarwinNotifications()
         // Check if a broadcast was already running (e.g. app relaunched during broadcast)
@@ -117,6 +131,7 @@ class SystemAudioRecorderService: NSObject, ObservableObject {
         isRecording = true
         startDate = Date()
         startTimer()
+        startLiveActivity()
     }
 
     private func handleBroadcastStopped() {
@@ -124,6 +139,63 @@ class SystemAudioRecorderService: NSObject, ObservableObject {
         log("⏹ Broadcast stopped")
         stopTimer()
         isRecording = false
+        endLiveActivity()
+    }
+
+    // MARK: - Live Activity (Dynamic Island)
+
+    private func startLiveActivity() {
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else {
+            log("⚠️ Live Activities not enabled on this device")
+            return
+        }
+
+        let attributes = RecordingAttributes(startDate: Date())
+        let initialState = RecordingAttributes.ContentState(
+            elapsedSeconds: 0,
+            mode: "内录",
+            isActive: true
+        )
+
+        do {
+            let content = ActivityContent(state: initialState, staleDate: nil)
+            liveActivity = try Activity<RecordingAttributes>.request(
+                attributes: attributes,
+                content: content,
+                pushType: nil
+            )
+            log("✅ Live Activity started: \(liveActivity?.id ?? "nil")")
+        } catch {
+            log("❌ Failed to start Live Activity: \(error.localizedDescription)")
+        }
+    }
+
+    private func updateLiveActivity() {
+        guard let activity = liveActivity else { return }
+        let state = RecordingAttributes.ContentState(
+            elapsedSeconds: Int(recordingTime),
+            mode: "内录",
+            isActive: true
+        )
+        Task {
+            let content = ActivityContent(state: state, staleDate: nil)
+            await activity.update(content)
+        }
+    }
+
+    private func endLiveActivity() {
+        guard let activity = liveActivity else { return }
+        let finalState = RecordingAttributes.ContentState(
+            elapsedSeconds: Int(recordingTime),
+            mode: "内录",
+            isActive: false
+        )
+        Task {
+            let content = ActivityContent(state: finalState, staleDate: nil)
+            await activity.end(content, dismissalPolicy: .default)
+            log("✅ Live Activity ended")
+        }
+        liveActivity = nil
     }
 
     // MARK: - Collect Audio
@@ -166,12 +238,20 @@ class SystemAudioRecorderService: NSObject, ObservableObject {
     // MARK: - Timer
 
     private func startTimer() {
+        var lastActivityUpdate: Int = -1
         timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 guard let self = self, let start = self.startDate else { return }
                 self.recordingTime = Date().timeIntervalSince(start)
                 let wave = sin(self.recordingTime * 4) * 0.25 + 0.35
                 self.audioLevel = Float(max(0, min(1, wave + Double.random(in: -0.08...0.08))))
+
+                // Update Live Activity every second (not every 0.1s to avoid throttling)
+                let currentSecond = Int(self.recordingTime)
+                if currentSecond != lastActivityUpdate {
+                    lastActivityUpdate = currentSecond
+                    self.updateLiveActivity()
+                }
             }
         }
     }

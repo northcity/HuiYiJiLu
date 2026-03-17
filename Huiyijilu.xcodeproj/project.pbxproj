@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		AA2B840C2F77FFEA0010A312 /* HuiyijiluBroadcast.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = AA2B84002F77FFEA0010A312 /* HuiyijiluBroadcast.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		CC1D84232F77FFEA0010A312 /* HuiyijiluWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = CC1D84202F77FFEA0010A312 /* HuiyijiluWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -17,6 +18,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = AA2B84052F77FFEA0010A312;
 			remoteInfo = HuiyijiluBroadcast;
+		};
+		CC1D84242F77FFEA0010A312 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = BB1D92FF2F67FFE30010A312 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CC1D84222F77FFEA0010A312;
+			remoteInfo = HuiyijiluWidget;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -28,6 +36,7 @@
 			dstSubfolderSpec = 13;
 			files = (
 				AA2B840C2F77FFEA0010A312 /* HuiyijiluBroadcast.appex in Embed App Extensions */,
+				CC1D84232F77FFEA0010A312 /* HuiyijiluWidget.appex in Embed App Extensions */,
 			);
 			name = "Embed App Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -35,18 +44,12 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		BB1D93072F67FFE30010A312 /* Huiyijilu.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Huiyijilu.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA2B84002F77FFEA0010A312 /* HuiyijiluBroadcast.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = HuiyijiluBroadcast.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		BB1D93072F67FFE30010A312 /* Huiyijilu.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Huiyijilu.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		CC1D84202F77FFEA0010A312 /* HuiyijiluWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = HuiyijiluWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		BB1D93142F67FFE40010A312 /* Exceptions for "Huiyijilu" folder in "Huiyijilu" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = BB1D93062F67FFE30010A312 /* Huiyijilu */;
-		};
 		AA2B840D2F77FFEA0010A312 /* Exceptions for "HuiyijiluBroadcast" folder in "HuiyijiluBroadcast" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -54,17 +57,23 @@
 			);
 			target = AA2B84052F77FFEA0010A312 /* HuiyijiluBroadcast */;
 		};
+		BB1D93142F67FFE40010A312 /* Exceptions for "Huiyijilu" folder in "Huiyijilu" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = BB1D93062F67FFE30010A312 /* Huiyijilu */;
+		};
+		CC1D842C2F77FFEA0010A312 /* Exceptions for "HuiyijiluWidget" folder in "HuiyijiluWidget" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = CC1D84222F77FFEA0010A312 /* HuiyijiluWidget */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		BB1D93092F67FFE30010A312 /* Huiyijilu */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				BB1D93142F67FFE40010A312 /* Exceptions for "Huiyijilu" folder in "Huiyijilu" target */,
-			);
-			path = Huiyijilu;
-			sourceTree = "<group>";
-		};
 		AA2B84012F77FFEA0010A312 /* HuiyijiluBroadcast */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -73,9 +82,32 @@
 			path = HuiyijiluBroadcast;
 			sourceTree = "<group>";
 		};
+		BB1D93092F67FFE30010A312 /* Huiyijilu */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				BB1D93142F67FFE40010A312 /* Exceptions for "Huiyijilu" folder in "Huiyijilu" target */,
+			);
+			path = Huiyijilu;
+			sourceTree = "<group>";
+		};
+		CC1D84212F77FFEA0010A312 /* HuiyijiluWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				CC1D842C2F77FFEA0010A312 /* Exceptions for "HuiyijiluWidget" folder in "HuiyijiluWidget" target */,
+			);
+			path = HuiyijiluWidget;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		AA2B84032F77FFEA0010A312 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		BB1D93042F67FFE30010A312 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -83,7 +115,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		AA2B84032F77FFEA0010A312 /* Frameworks */ = {
+		CC1D84262F77FFEA0010A312 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -98,6 +130,7 @@
 			children = (
 				BB1D93092F67FFE30010A312 /* Huiyijilu */,
 				AA2B84012F77FFEA0010A312 /* HuiyijiluBroadcast */,
+				CC1D84212F77FFEA0010A312 /* HuiyijiluWidget */,
 				BB1D93082F67FFE30010A312 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -107,6 +140,7 @@
 			children = (
 				BB1D93072F67FFE30010A312 /* Huiyijilu.app */,
 				AA2B84002F77FFEA0010A312 /* HuiyijiluBroadcast.appex */,
+				CC1D84202F77FFEA0010A312 /* HuiyijiluWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -114,30 +148,6 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		BB1D93062F67FFE30010A312 /* Huiyijilu */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = BB1D93152F67FFE40010A312 /* Build configuration list for PBXNativeTarget "Huiyijilu" */;
-			buildPhases = (
-				BB1D93032F67FFE30010A312 /* Sources */,
-				BB1D93042F67FFE30010A312 /* Frameworks */,
-				BB1D93052F67FFE30010A312 /* Resources */,
-				AA2B84082F77FFEA0010A312 /* Embed App Extensions */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				AA2B84072F77FFEA0010A312 /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				BB1D93092F67FFE30010A312 /* Huiyijilu */,
-			);
-			name = Huiyijilu;
-			packageProductDependencies = (
-			);
-			productName = Huiyijilu;
-			productReference = BB1D93072F67FFE30010A312 /* Huiyijilu.app */;
-			productType = "com.apple.product-type.application";
-		};
 		AA2B84052F77FFEA0010A312 /* HuiyijiluBroadcast */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = AA2B840B2F77FFEA0010A312 /* Build configuration list for PBXNativeTarget "HuiyijiluBroadcast" */;
@@ -160,6 +170,53 @@
 			productReference = AA2B84002F77FFEA0010A312 /* HuiyijiluBroadcast.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		BB1D93062F67FFE30010A312 /* Huiyijilu */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BB1D93152F67FFE40010A312 /* Build configuration list for PBXNativeTarget "Huiyijilu" */;
+			buildPhases = (
+				BB1D93032F67FFE30010A312 /* Sources */,
+				BB1D93042F67FFE30010A312 /* Frameworks */,
+				BB1D93052F67FFE30010A312 /* Resources */,
+				AA2B84082F77FFEA0010A312 /* Embed App Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AA2B84072F77FFEA0010A312 /* PBXTargetDependency */,
+				CC1D84252F77FFEA0010A312 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				BB1D93092F67FFE30010A312 /* Huiyijilu */,
+			);
+			name = Huiyijilu;
+			packageProductDependencies = (
+			);
+			productName = Huiyijilu;
+			productReference = BB1D93072F67FFE30010A312 /* Huiyijilu.app */;
+			productType = "com.apple.product-type.application";
+		};
+		CC1D84222F77FFEA0010A312 /* HuiyijiluWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CC1D842B2F77FFEA0010A312 /* Build configuration list for PBXNativeTarget "HuiyijiluWidget" */;
+			buildPhases = (
+				CC1D84282F77FFEA0010A312 /* Sources */,
+				CC1D84262F77FFEA0010A312 /* Frameworks */,
+				CC1D84272F77FFEA0010A312 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				CC1D84212F77FFEA0010A312 /* HuiyijiluWidget */,
+			);
+			name = HuiyijiluWidget;
+			packageProductDependencies = (
+			);
+			productName = HuiyijiluWidget;
+			productReference = CC1D84202F77FFEA0010A312 /* HuiyijiluWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -170,10 +227,10 @@
 				LastSwiftUpdateCheck = 2620;
 				LastUpgradeCheck = 2620;
 				TargetAttributes = {
-					BB1D93062F67FFE30010A312 = {
+					AA2B84052F77FFEA0010A312 = {
 						CreatedOnToolsVersion = 26.2;
 					};
-					AA2B84052F77FFEA0010A312 = {
+					BB1D93062F67FFE30010A312 = {
 						CreatedOnToolsVersion = 26.2;
 					};
 				};
@@ -194,11 +251,19 @@
 			targets = (
 				BB1D93062F67FFE30010A312 /* Huiyijilu */,
 				AA2B84052F77FFEA0010A312 /* HuiyijiluBroadcast */,
+				CC1D84222F77FFEA0010A312 /* HuiyijiluWidget */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		AA2B84042F77FFEA0010A312 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		BB1D93052F67FFE30010A312 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -206,7 +271,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		AA2B84042F77FFEA0010A312 /* Resources */ = {
+		CC1D84272F77FFEA0010A312 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -216,6 +281,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		AA2B84022F77FFEA0010A312 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		BB1D93032F67FFE30010A312 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -223,7 +295,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		AA2B84022F77FFEA0010A312 /* Sources */ = {
+		CC1D84282F77FFEA0010A312 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -238,9 +310,131 @@
 			target = AA2B84052F77FFEA0010A312 /* HuiyijiluBroadcast */;
 			targetProxy = AA2B84062F77FFEA0010A312 /* PBXContainerItemProxy */;
 		};
+		CC1D84252F77FFEA0010A312 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CC1D84222F77FFEA0010A312 /* HuiyijiluWidget */;
+			targetProxy = CC1D84242F77FFEA0010A312 /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		AA2B84092F77FFEA0010A312 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = HuiyijiluBroadcast/HuiyijiluBroadcast.entitlements;
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				CODE_SIGN_STYLE = Manual;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = WKG7GKH7M7;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = HuiyijiluBroadcast/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = HuiyijiluBroadcast;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ceshi.ceshimainapp.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = testmainwidget_dev;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		AA2B840A2F77FFEA0010A312 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = HuiyijiluBroadcast/HuiyijiluBroadcast.entitlements;
+				CODE_SIGN_STYLE = Manual;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = HuiyijiluBroadcast/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = HuiyijiluBroadcast;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ceshi.ceshimainapp.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		CC1D84292F77FFEA0010A312 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = HuiyijiluWidget/HuiyijiluWidget.entitlements;
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				CODE_SIGN_STYLE = Manual;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = WKG7GKH7M7;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = HuiyijiluWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = HuiyijiluWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ceshi.ceshimainapp.HuiyijiluWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		CC1D842A2F77FFEA0010A312 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = HuiyijiluWidget/HuiyijiluWidget.entitlements;
+				CODE_SIGN_STYLE = Manual;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = HuiyijiluWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = HuiyijiluWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ceshi.ceshimainapp.HuiyijiluWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		BB1D93162F67FFE40010A312 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -287,7 +481,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = Huiyijilu/Huiyijilu.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Huiyijilu/HuiyijiluRelease.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
@@ -318,60 +512,6 @@
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Release;
-		};
-		AA2B84092F77FFEA0010A312 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = HuiyijiluBroadcast/HuiyijiluBroadcast.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = WKG7GKH7M7;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = HuiyijiluBroadcast/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = HuiyijiluBroadcast;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.ceshi.ceshimainapp.HuiyijiluBroadcast;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Debug;
-		};
-		AA2B840A2F77FFEA0010A312 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = HuiyijiluBroadcast/HuiyijiluBroadcast.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = WKG7GKH7M7;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = HuiyijiluBroadcast/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = HuiyijiluBroadcast;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.ceshi.ceshimainapp.HuiyijiluBroadcast;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -501,6 +641,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		AA2B840B2F77FFEA0010A312 /* Build configuration list for PBXNativeTarget "HuiyijiluBroadcast" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA2B84092F77FFEA0010A312 /* Debug */,
+				AA2B840A2F77FFEA0010A312 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		BB1D93022F67FFE30010A312 /* Build configuration list for PBXProject "Huiyijilu" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -519,11 +668,11 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		AA2B840B2F77FFEA0010A312 /* Build configuration list for PBXNativeTarget "HuiyijiluBroadcast" */ = {
+		CC1D842B2F77FFEA0010A312 /* Build configuration list for PBXNativeTarget "HuiyijiluWidget" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				AA2B84092F77FFEA0010A312 /* Debug */,
-				AA2B840A2F77FFEA0010A312 /* Release */,
+				CC1D84292F77FFEA0010A312 /* Debug */,
+				CC1D842A2F77FFEA0010A312 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
