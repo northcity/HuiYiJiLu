@@ -21,6 +21,7 @@ struct MeetingDetailView: View {
     @StateObject private var transcriptionService = TranscriptionService()
     @StateObject private var aiService = AIService()
     @StateObject private var workflowService = BailianWorkflowService()
+    @StateObject private var tingwuService = TingWuService()
     @State private var selectedTab = 0
     @State private var isRetrying = false
     @State private var showShareSheet = false
@@ -59,6 +60,7 @@ struct MeetingDetailView: View {
                     Text("Transcript").tag(1)
                     Text("Tasks").tag(2)
                     Text("图文纪要").tag(3)
+                    Text("智能纪要").tag(4)
                 }
                 .pickerStyle(.segmented)
                 .padding(.horizontal)
@@ -70,6 +72,7 @@ struct MeetingDetailView: View {
                     case 1: transcriptSection
                     case 2: actionItemsSection
                     case 3: richNotesSection
+                    case 4: tingwuNotesSection
                     default: EmptyView()
                     }
                 }
@@ -101,6 +104,14 @@ struct MeetingDetailView: View {
                             generateRichNotes()
                         } label: {
                             Label("生成图文纪要", systemImage: "sparkles")
+                        }
+                    }
+
+                    if meeting.audioFileURL != nil && tingwuService.isConfigured {
+                        Button {
+                            generateTingWuNotes()
+                        } label: {
+                            Label("生成智能纪要（听悟）", systemImage: "waveform.badge.magnifyingglass")
                         }
                     }
                 } label: {
@@ -401,7 +412,227 @@ struct MeetingDetailView: View {
         }
     }
 
+    // MARK: - TingWu Smart Notes Tab (通义听悟)
+    private var tingwuNotesSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+
+            // --- Error banner ---
+            if !tingwuService.lastError.isEmpty && !tingwuService.isProcessing {
+                HStack(alignment: .top, spacing: 10) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("听悟任务失败")
+                            .font(.subheadline).fontWeight(.semibold)
+                        Text(tingwuService.lastError)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Button {
+                            UIPasteboard.general.string = tingwuService.lastError
+                        } label: {
+                            Label("复制错误信息", systemImage: "doc.on.doc")
+                                .font(.caption)
+                        }
+                        .foregroundStyle(.blue)
+                        Text("Xcode Console 过滤关键字 [TingWu] 查看完整日志")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: 10).fill(Color.orange.opacity(0.1)))
+            }
+
+            // --- Processing state ---
+            if tingwuService.isProcessing {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                        Text("正在生成智能纪要...")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    if !tingwuService.statusText.isEmpty {
+                        Text(tingwuService.statusText)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: 12).fill(Color(.systemGray6)))
+
+            } else if !meeting.tingwuNotes.isEmpty {
+                // --- Display results ---
+                // Source badge
+                HStack(spacing: 6) {
+                    Image(systemName: "waveform.badge.magnifyingglass")
+                        .font(.caption)
+                    Text("通义听悟 · 智能纪要")
+                        .font(.caption)
+                }
+                .foregroundStyle(.secondary)
+                .padding(.bottom, 2)
+
+                // 📖 Detail view navigation button
+                NavigationLink {
+                    TingWuDetailView(meeting: meeting)
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "doc.richtext")
+                            .font(.title2)
+                            .foregroundStyle(.indigo)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("查看智能纪要详情")
+                                .font(.headline)
+                                .foregroundStyle(.primary)
+                            Text("对话内容 · 全文概要 · 章节速览 · 待办事项")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.indigo.opacity(0.08))
+                    )
+                }
+
+                // Quick preview of the notes (truncated)
+                let previewText = String(meeting.tingwuNotes.prefix(500))
+                if !previewText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("纪要预览")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text(previewText + (meeting.tingwuNotes.count > 500 ? "…" : ""))
+                            .font(.subheadline)
+                            .lineSpacing(3)
+                            .lineLimit(10)
+                            .foregroundStyle(.primary)
+                    }
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(RoundedRectangle(cornerRadius: 12).fill(Color(.systemGray6)))
+                    .textSelection(.enabled)
+                }
+
+                // DataId badge
+                if !meeting.tingwuDataId.isEmpty {
+                    HStack(spacing: 4) {
+                        Text("DataId:")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Text(meeting.tingwuDataId)
+                            .font(.system(.caption2, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                    }
+                }
+
+                // If text contains a URL, show open button
+                if let webURL = extractFirstURL(from: meeting.tingwuNotes) {
+                    Button {
+                        openWebURL = IdentifiableURL(url: webURL)
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "globe")
+                            Text("在 App 内查看网页版纪要")
+                                .fontWeight(.medium)
+                            Spacer()
+                            Image(systemName: "arrow.up.right")
+                                .font(.caption)
+                        }
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.indigo.opacity(0.1))
+                        )
+                        .foregroundStyle(.indigo)
+                    }
+                }
+
+                // Regenerate button
+                Button {
+                    generateTingWuNotes()
+                } label: {
+                    Label("重新生成", systemImage: "arrow.clockwise")
+                        .font(.subheadline)
+                }
+                .foregroundStyle(.blue)
+
+            } else {
+                // --- Empty state ---
+                VStack(spacing: 16) {
+                    Image(systemName: "waveform.badge.magnifyingglass")
+                        .font(.system(size: 44))
+                        .foregroundStyle(.indigo)
+                    Text("智能纪要")
+                        .font(.title3).fontWeight(.semibold)
+                    Text("使用通义听悟自动完成语音识别\n并生成结构化的会议智能纪要")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                    if !tingwuService.isConfigured {
+                        Text("请先在「设置」中配置 API Key、听悟 App ID 和 Workspace ID")
+                            .font(.caption).foregroundStyle(.orange)
+                    } else if meeting.audioFileURL == nil {
+                        Text("需要有录音文件才能生成智能纪要")
+                            .font(.caption).foregroundStyle(.secondary)
+                    } else {
+                        Button {
+                            generateTingWuNotes()
+                        } label: {
+                            Label("生成智能纪要", systemImage: "waveform.badge.magnifyingglass")
+                                .fontWeight(.semibold)
+                        }
+                        .buttonStyle(.borderedProminent).tint(.indigo)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 30)
+            }
+        }
+    }
+
     // MARK: - Actions
+    private func generateTingWuNotes() {
+        guard let audioURL = meeting.audioFileURL else {
+            errorMessage = "没有录音文件"
+            showError = true
+            return
+        }
+        Task {
+            do {
+                let result = try await tingwuService.generateSmartNotes(audioFileURL: audioURL)
+                meeting.tingwuNotes = result.meetingNotes
+                meeting.tingwuDataId = result.dataId
+                
+                // Store raw results for detail view (all downloaded result types)
+                if let rawData = try? JSONSerialization.data(withJSONObject: result.rawResults),
+                   let rawStr = String(data: rawData, encoding: .utf8) {
+                    meeting.tingwuRawResults = rawStr
+                }
+                
+                // If we got transcription and current transcript is empty, update it
+                if meeting.transcript.isEmpty && !result.transcription.isEmpty {
+                    meeting.transcript = result.transcription
+                }
+                selectedTab = 4
+                try? modelContext.save()
+            } catch {
+                errorMessage = error.localizedDescription
+                showError = true
+            }
+        }
+    }
+
     private func generateRichNotes() {
         guard !meeting.transcript.isEmpty || meeting.audioFileURL != nil else { return }
         Task {

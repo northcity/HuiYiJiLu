@@ -28,6 +28,9 @@ final class Meeting {
     var keyPoints: String
     var statusRaw: String
     var richNotes: String                   // output from Bailian workflow app
+    var tingwuNotes: String = ""            // output from TingWu meeting smart notes
+    var tingwuDataId: String = ""           // TingWu task dataId (for polling)
+    var tingwuRawResults: String = ""       // Raw JSON results from TingWu (for detail view)
 
     @Relationship(deleteRule: .cascade)
     var actionItems: [ActionItem] = []
@@ -80,6 +83,8 @@ final class Meeting {
         self.summary = ""
         self.keyPoints = "[]"
         self.richNotes = ""
+        self.tingwuNotes = ""
+        self.tingwuDataId = ""
         self.statusRaw = MeetingStatus.recording.rawValue
     }
 }

@@ -5,6 +5,7 @@
 
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
 
 /// Home page — greeting header + grouped, card-style meeting list
 struct MeetingListView: View {
@@ -13,6 +14,7 @@ struct MeetingListView: View {
     @State private var searchText = ""
     @State private var showRecording = false
     @State private var showSettings = false
+    @State private var showAudioImporter = false
 
     // MARK: - Filtering & Grouping
 
@@ -58,6 +60,11 @@ struct MeetingListView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) { EmptyView() }
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button { showAudioImporter = true } label: {
+                        Image(systemName: "doc.badge.plus").foregroundStyle(.secondary)
+                    }
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button { showSettings = true } label: {
                         Image(systemName: "gear").foregroundStyle(.secondary)
@@ -66,6 +73,13 @@ struct MeetingListView: View {
             }
             .fullScreenCover(isPresented: $showRecording) { RecordingView() }
             .sheet(isPresented: $showSettings)       { SettingsView() }
+            .fileImporter(
+                isPresented: $showAudioImporter,
+                allowedContentTypes: [.audio, .mpeg4Audio, .mp3, .wav, .aiff],
+                allowsMultipleSelection: false
+            ) { result in
+                importAudioFile(result: result)
+            }
         }
     }
 
@@ -264,6 +278,40 @@ struct MeetingListView: View {
             modelContext.delete(meeting)
         }
     }
+
+    // MARK: - Import Audio File
+
+    private func importAudioFile(result: Result<[URL], Error>) {
+        guard case .success(let urls) = result, let sourceURL = urls.first else { return }
+
+        // Start security-scoped access
+        guard sourceURL.startAccessingSecurityScopedResource() else { return }
+        defer { sourceURL.stopAccessingSecurityScopedResource() }
+
+        // Copy file to Recordings directory
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let recordingsDir = docs.appendingPathComponent("Recordings")
+        try? FileManager.default.createDirectory(at: recordingsDir, withIntermediateDirectories: true)
+
+        let timestamp = Int(Date().timeIntervalSince1970 * 1000)
+        let ext = sourceURL.pathExtension.isEmpty ? "m4a" : sourceURL.pathExtension
+        let fileName = "imported_\(timestamp).\(ext)"
+        let destURL = recordingsDir.appendingPathComponent(fileName)
+
+        do {
+            try FileManager.default.copyItem(at: sourceURL, to: destURL)
+        } catch {
+            print("[Import] Failed to copy audio: \(error)")
+            return
+        }
+
+        // Create a new Meeting with the imported audio
+        let meeting = Meeting(title: "导入: \(sourceURL.deletingPathExtension().lastPathComponent)", date: Date())
+        meeting.audioFileName = fileName
+        meeting.status = .completed
+        modelContext.insert(meeting)
+        try? modelContext.save()
+    }
 }
 
 // MARK: - Meeting Row Card
@@ -346,7 +394,7 @@ struct MeetingRowView: View {
                 }
 
                 // Bottom badges
-                if !meeting.actionItems.isEmpty || !meeting.richNotes.isEmpty {
+                if !meeting.actionItems.isEmpty || !meeting.richNotes.isEmpty || !meeting.tingwuNotes.isEmpty {
                     HStack(spacing: 10) {
                         if !meeting.actionItems.isEmpty {
                             let done  = meeting.actionItems.filter(\.isCompleted).count
@@ -357,6 +405,9 @@ struct MeetingRowView: View {
                         }
                         if !meeting.richNotes.isEmpty {
                             badge(icon: "sparkles", text: "图文纪要", color: .purple)
+                        }
+                        if !meeting.tingwuNotes.isEmpty {
+                            badge(icon: "waveform.badge.magnifyingglass", text: "智能纪要", color: .indigo)
                         }
                     }
                 }

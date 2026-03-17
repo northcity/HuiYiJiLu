@@ -14,6 +14,10 @@ struct SettingsView: View {
     @State private var showAPIKey = false
     @AppStorage("bailian_workflow_app_id") private var workflowAppId = ""
 
+    // TingWu (通义听悟)
+    @AppStorage("tingwu_app_id") private var tingwuAppId = ""
+    @AppStorage("tingwu_workspace_id") private var tingwuWorkspaceId = ""
+
     // OSS
     @AppStorage("oss_access_key_id")     private var ossKeyId = ""
     @AppStorage("oss_access_key_secret") private var ossKeySecret = ""
@@ -91,6 +95,34 @@ struct SettingsView: View {
                     Text("会议图文纪要工作流")
                 } footer: {
                     Text("输入百炼应用工作流 App ID。\n工作流会自动接收录音音频文件并生成 HTML 格式的会议纪要。\n如工作流不可用，将自动回退到 AI 模型生成 Markdown 纪要。")
+                }
+
+                // TingWu 通义听悟 智能纪要
+                Section {
+                    HStack {
+                        TextField("听悟 App ID（如 tw_xxx）", text: $tingwuAppId)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .font(.system(.body, design: .monospaced))
+                        if !tingwuAppId.isEmpty {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                        }
+                    }
+                    HStack {
+                        TextField("Workspace ID（如 llm-xxx）", text: $tingwuWorkspaceId)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .font(.system(.body, design: .monospaced))
+                        if !tingwuWorkspaceId.isEmpty {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                        }
+                    }
+                } header: {
+                    Text("通义听悟·智能纪要")
+                } footer: {
+                    Text("输入通义听悟应用 App ID 和 Workspace ID。\n听悟会自动完成语音识别并生成结构化的会议智能纪要。\n前往 tingwu.aliyun.com 获取配置。")
                 }
 
                 // OSS 馅云对象存储
