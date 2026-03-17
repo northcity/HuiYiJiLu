@@ -166,9 +166,8 @@ struct MeetingDetailView: View {
             } else if !meeting.summary.isEmpty {
                 // Summary
                 SectionCard(title: "Summary", icon: "text.quote") {
-                    Text(meeting.summary)
-                        .font(.body)
-                        .lineSpacing(4)
+                    MarkdownText(text: meeting.summary)
+                        .textSelection(.enabled)
                 }
 
                 // Key Points
@@ -181,8 +180,7 @@ struct MeetingDetailView: View {
                                         .fill(Color.blue)
                                         .frame(width: 6, height: 6)
                                         .padding(.top, 6)
-                                    Text(point)
-                                        .font(.body)
+                                    MarkdownText(text: point)
                                 }
                             }
                         }
@@ -336,9 +334,7 @@ struct MeetingDetailView: View {
                 } else {
                     // Render plain Markdown text (LLM fallback / qwen-flash final output)
                     SectionCard(title: "图文纪要", icon: "sparkles") {
-                        Text(meeting.richNotes)
-                            .font(.body)
-                            .lineSpacing(5)
+                        MarkdownText(text: meeting.richNotes)
                             .textSelection(.enabled)
                     }
 

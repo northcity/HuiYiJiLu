@@ -26,6 +26,8 @@ struct MeetingListView: View {
     var body: some View {
         NavigationStack {
             ZStack {
+                Color(.systemGroupedBackground).ignoresSafeArea()
+
                 if meetings.isEmpty {
                     emptyStateView
                 } else {
@@ -81,6 +83,9 @@ struct MeetingListView: View {
                 NavigationLink(destination: MeetingDetailView(meeting: meeting)) {
                     MeetingRowView(meeting: meeting)
                 }
+                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
             }
             .onDelete(perform: deleteMeetings)
 
@@ -91,6 +96,7 @@ struct MeetingListView: View {
                 .listRowSeparator(.hidden)
         }
         .listStyle(.plain)
+        .background(Color(.systemGroupedBackground))
     }
 
     // MARK: - New Meeting Button
@@ -130,35 +136,83 @@ struct MeetingListView: View {
     }
 }
 
-// MARK: - Meeting Row
+// MARK: - Meeting Row (Card Style)
 struct MeetingRowView: View {
     let meeting: Meeting
 
+    // MARK: - Status helpers
+    private var statusColor: Color {
+        switch meeting.status {
+        case .recording:   return .red
+        case .transcribing: return .orange
+        case .summarizing:  return .purple
+        case .completed:    return .green
+        case .failed:       return Color(.systemGray)
+        }
+    }
+
+    private var statusIcon: String {
+        switch meeting.status {
+        case .recording:    return "mic.fill"
+        case .transcribing: return "text.bubble"
+        case .summarizing:  return "brain"
+        case .completed:    return "checkmark.circle.fill"
+        case .failed:       return "exclamationmark.triangle.fill"
+        }
+    }
+
+    private var statusLabel: String {
+        switch meeting.status {
+        case .recording:    return "录音中"
+        case .transcribing: return "转写中"
+        case .summarizing:  return "分析中"
+        case .completed:    return "已完成"
+        case .failed:       return "失败"
+        }
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
+        VStack(alignment: .leading, spacing: 10) {
+
+            // — Top Row: Title + Status Pill
+            HStack(alignment: .top, spacing: 8) {
                 Text(meeting.title.isEmpty ? "Untitled Meeting" : meeting.title)
                     .font(.headline)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .foregroundStyle(.primary)
 
                 Spacer()
 
-                statusBadge
+                // Status pill
+                HStack(spacing: 4) {
+                    if meeting.status != .completed {
+                        Image(systemName: statusIcon)
+                            .font(.caption2)
+                    }
+                    Text(statusLabel)
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(statusColor.opacity(0.15))
+                .foregroundStyle(statusColor)
+                .clipShape(Capsule())
             }
 
-            HStack(spacing: 12) {
-                Label(meeting.date.formatted(date: .abbreviated, time: .shortened),
-                      systemImage: "calendar")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
+            // — Tags Row: Date + Duration
+            HStack(spacing: 8) {
+                tagView(icon: "calendar", text: meeting.date.formatted(date: .abbreviated, time: .shortened))
                 if meeting.duration > 0 {
-                    Label(meeting.formattedDuration, systemImage: "clock")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    tagView(icon: "clock", text: meeting.formattedDuration)
+                }
+                if !meeting.richNotes.isEmpty {
+                    tagView(icon: "sparkles", text: "图文纪要")
+                        .foregroundStyle(.purple)
                 }
             }
 
+            // — Summary preview
             if !meeting.summary.isEmpty {
                 Text(meeting.summary)
                     .font(.subheadline)
@@ -166,42 +220,41 @@ struct MeetingRowView: View {
                     .lineLimit(2)
             }
 
+            // — Divider + Action items badge
             if !meeting.actionItems.isEmpty {
+                Divider()
                 let completed = meeting.actionItems.filter(\.isCompleted).count
-                let total = meeting.actionItems.count
+                let total     = meeting.actionItems.count
                 HStack(spacing: 4) {
-                    Image(systemName: "checklist")
-                    Text("\(completed)/\(total) tasks")
+                    Image(systemName: completed == total ? "checklist.checked" : "checklist")
+                    Text("\(completed)/\(total) 任务")
+                    if completed == total {
+                        Text("· 全部完成").foregroundStyle(.green)
+                    }
                 }
                 .font(.caption)
                 .foregroundStyle(.blue)
             }
         }
-        .padding(.vertical, 4)
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.07), radius: 6, x: 0, y: 2)
+        )
     }
 
-    @ViewBuilder
-    private var statusBadge: some View {
-        switch meeting.status {
-        case .recording:
-            Label("Recording", systemImage: "mic.fill")
-                .font(.caption2)
-                .foregroundStyle(.red)
-        case .transcribing:
-            Label("Transcribing", systemImage: "text.bubble")
-                .font(.caption2)
-                .foregroundStyle(.orange)
-        case .summarizing:
-            Label("Summarizing", systemImage: "brain")
-                .font(.caption2)
-                .foregroundStyle(.purple)
-        case .completed:
-            EmptyView()
-        case .failed:
-            Label("Failed", systemImage: "exclamationmark.triangle")
-                .font(.caption2)
-                .foregroundStyle(.red)
+    private func tagView(icon: String, text: String) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+            Text(text)
         }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3)
+        .background(Color(.systemGray5))
+        .clipShape(Capsule())
     }
 }
 
