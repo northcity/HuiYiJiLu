@@ -162,7 +162,7 @@ class AIService: ObservableObject {
         defer { Task { @MainActor in self.isProcessing = false } }
 
         let systemPrompt = """
-        你是专业的会议记录助手。请将以下会议转写文本整理成结构化的 Markdown 格式会议纪要。
+        你是云雀记应用的 AI 助手。请将以下会议转写文本整理成结构化的 Markdown 格式会议纪要。
 
         输出格式要求（严格遵守）：
 

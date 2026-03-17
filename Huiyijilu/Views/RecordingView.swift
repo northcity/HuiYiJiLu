@@ -37,7 +37,7 @@ struct RecordingView: View {
 
     // Unified accessors
     private var isRecordingActive: Bool {
-        mode == .microphone ? recorder.isRecording : systemRecorder.isRecording
+        mode == .microphone ? recorder.isRecording : (systemRecorder.isRecording || systemRecorder.hasPendingAudio)
     }
     private var isPaused: Bool { mode == .microphone ? recorder.isPaused : false }
     private var currentTime: TimeInterval {
@@ -87,6 +87,12 @@ struct RecordingView: View {
             Button("OK") { }
         } message: {
             Text(errorMessage)
+        }
+        .onChange(of: systemRecorder.hasPendingAudio) { _, hasPending in
+            if hasPending && mode == .system && !isProcessing {
+                // Broadcast just stopped — automatically start processing
+                stopAndProcess()
+            }
         }
     }
 
@@ -171,6 +177,7 @@ struct RecordingView: View {
         if !isRecordingActive {
             return mode == .system ? "点击开始系统内录" : "点击开始录音"
         }
+        if systemRecorder.hasPendingAudio { return "录制已结束，正在准备处理..." }
         if isPaused { return "已暂停" }
         return mode == .system ? "系统录制中..." : "录音中..."
     }
@@ -225,29 +232,23 @@ struct RecordingView: View {
                 }
 
                 if mode == .system {
-                    // System mode: show broadcast picker again (user taps to end broadcast)
-                    VStack(spacing: 8) {
-                        BroadcastButton(isRecording: true)
-                        Text("点击结束录制")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    // Also show a "Process" button to collect audio after broadcast ends
-                    Button {
-                        stopAndProcess()
-                    } label: {
-                        VStack(spacing: 6) {
-                            Image(systemName: "arrow.down.circle.fill")
-                                .font(.title)
-                                .foregroundColor(.white)
-                            Text("处理")
-                                .font(.caption2)
-                                .foregroundColor(.white)
+                    if systemRecorder.hasPendingAudio {
+                        // Broadcast ended, auto-processing will trigger
+                        VStack(spacing: 12) {
+                            ProgressView()
+                                .scaleEffect(1.2)
+                            Text("正在获取录音...")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
-                        .frame(width: 72, height: 72)
-                        .background(Circle().fill(Color.blue))
-                        .shadow(color: .blue.opacity(0.3), radius: 8, y: 4)
+                    } else {
+                        // System mode: show broadcast picker (user taps to end broadcast)
+                        VStack(spacing: 8) {
+                            BroadcastButton(isRecording: true)
+                            Text("点击结束录制")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 } else {
                     // Mic mode: Stop button
@@ -341,6 +342,12 @@ struct RecordingView: View {
             var duration: TimeInterval
 
             if mode == .system {
+                isProcessing = true
+                processingStage = "正在获取录音文件..."
+
+                // Give the extension a moment to finalize the file after broadcast ends
+                try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5s safety margin
+
                 // Collect audio from the broadcast extension's shared container
                 do {
                     let result = try await systemRecorder.collectRecordedAudio()
@@ -349,15 +356,15 @@ struct RecordingView: View {
                 } catch {
                     errorMessage = "获取录制音频失败: \(error.localizedDescription)"
                     showError = true
+                    isProcessing = false
                     return
                 }
             } else {
                 let result = recorder.stopRecording()
                 fileName = result.fileName
                 duration = result.duration
+                isProcessing = true
             }
-
-            isProcessing = true
 
             // Create meeting
             let meeting = Meeting(title: "Processing...", date: Date(), duration: duration)

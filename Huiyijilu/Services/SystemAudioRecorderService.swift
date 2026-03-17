@@ -24,13 +24,16 @@ class SystemAudioRecorderService: NSObject, ObservableObject {
     @Published var isRecording = false
     @Published var recordingTime: TimeInterval = 0
     @Published var audioLevel: Float = 0
+    /// Set to true when broadcast stops and audio is ready to be collected
+    @Published var hasPendingAudio = false
 
     // MARK: - Constants
-    static let appGroupID = "group.com.ceshi.ceshimainapp"
+    static let appGroupID = "group.chenxi.yunque"
     static let audioFileName = "broadcast_recording.m4a"
     static let recordingFlagFile = "is_recording"
+    static let debugLogFile = "broadcast_debug.log"
     /// Must match the value in HuiyijiluBroadcast target's bundle id in .pbxproj
-    static let broadcastExtensionBundleID = "com.ceshi.ceshimainapp.widget"
+    static let broadcastExtensionBundleID = "com.chenxi.yunqueji.postcast"
 
     // MARK: - Internal
     private var timer: Timer?
@@ -48,6 +51,10 @@ class SystemAudioRecorderService: NSObject, ObservableObject {
 
     private var flagFileURL: URL? {
         sharedContainerURL?.appendingPathComponent(Self.recordingFlagFile)
+    }
+    
+    private var debugLogURL: URL? {
+        sharedContainerURL?.appendingPathComponent(Self.debugLogFile)
     }
 
     private var recordingsDir: URL {
@@ -136,9 +143,10 @@ class SystemAudioRecorderService: NSObject, ObservableObject {
 
     private func handleBroadcastStopped() {
         guard isRecording else { return }
-        log("⏹ Broadcast stopped")
+        log("⏹ Broadcast stopped — audio pending for collection")
         stopTimer()
         isRecording = false
+        hasPendingAudio = true
         endLiveActivity()
     }
 
@@ -198,19 +206,97 @@ class SystemAudioRecorderService: NSObject, ObservableObject {
         liveActivity = nil
     }
 
+    // MARK: - Wait for Broadcast to Stop
+
+    /// Wait until the broadcast has fully stopped (flag file removed) or timeout.
+    /// Call this before collectRecordedAudio() to ensure the extension has finished.
+    func waitForBroadcastToStop(timeout: TimeInterval = 10) async {
+        guard isRecording else {
+            log("Broadcast already stopped")
+            return
+        }
+        log("⏳ Waiting for broadcast to stop (timeout: \(timeout)s)...")
+        let start = Date()
+        while isRecording && Date().timeIntervalSince(start) < timeout {
+            try? await Task.sleep(nanoseconds: 300_000_000) // 0.3s
+        }
+        if isRecording {
+            log("⚠️ Broadcast did not stop within timeout — forcing state reset")
+            stopTimer()
+            isRecording = false
+            endLiveActivity()
+        } else {
+            log("✅ Broadcast stopped")
+        }
+    }
+
     // MARK: - Collect Audio
 
     /// Copy the recorded audio from the shared container to the app's Recordings directory.
+    /// Includes a polling mechanism to wait for the extension to finish writing the file.
     /// Returns the local file name and duration.
     func collectRecordedAudio() async throws -> (fileName: String, duration: TimeInterval) {
+        // Save duration BEFORE resetting (don't lose it on error)
         let duration = recordingTime
-        recordingTime = 0
-        startDate = nil
 
-        guard let sourceURL = sharedAudioURL,
-              FileManager.default.fileExists(atPath: sourceURL.path) else {
+        guard let containerURL = sharedContainerURL else {
+            log("⛔ App Group container is nil — entitlements misconfigured")
+            throw SystemRecordingError.appGroupNotAccessible
+        }
+
+        guard let sourceURL = sharedAudioURL else {
             throw SystemRecordingError.noAudioTrack
         }
+
+        log("📂 Looking for audio at: \(sourceURL.path)")
+        log("📂 Shared container: \(containerURL.path)")
+
+        // List files in shared container for debugging
+        if let files = try? FileManager.default.contentsOfDirectory(atPath: containerURL.path) {
+            log("📂 Container contents: \(files)")
+        }
+
+        // Poll for the audio file to appear (extension may still be finalizing)
+        let maxWait: TimeInterval = 8
+        let pollInterval: UInt64 = 500_000_000 // 0.5s in nanoseconds
+        let startTime = Date()
+        var fileFound = false
+
+        while Date().timeIntervalSince(startTime) < maxWait {
+            if FileManager.default.fileExists(atPath: sourceURL.path) {
+                // Also check file size > 0 to ensure it's not an empty placeholder
+                if let attrs = try? FileManager.default.attributesOfItem(atPath: sourceURL.path),
+                   let size = attrs[.size] as? UInt64, size > 0 {
+                    log("✅ Audio file found (\(size) bytes) after \(String(format: "%.1f", Date().timeIntervalSince(startTime)))s")
+                    fileFound = true
+                    break
+                } else {
+                    log("⏳ File exists but is empty, waiting for writer to flush...")
+                }
+            } else {
+                log("⏳ File not yet available, polling... (\(String(format: "%.1f", Date().timeIntervalSince(startTime)))s)")
+            }
+            try? await Task.sleep(nanoseconds: pollInterval)
+        }
+
+        guard fileFound else {
+            log("⛔ Audio file not found after \(maxWait)s wait")
+            // List container contents again for diagnosis
+            if let files = try? FileManager.default.contentsOfDirectory(atPath: containerURL.path) {
+                log("📂 Final container contents: \(files)")
+            }
+            // Read broadcast extension's debug log for diagnostics
+            if let logURL = debugLogURL,
+               let logContent = try? String(contentsOf: logURL, encoding: .utf8) {
+                log("📋 Broadcast Extension Log:\n\(logContent)")
+            }
+            throw SystemRecordingError.noAudioTrack
+        }
+
+        // NOW reset state (only after confirming file exists)
+        recordingTime = 0
+        startDate = nil
+        hasPendingAudio = false
 
         // Ensure recordings directory
         if !FileManager.default.fileExists(atPath: recordingsDir.path) {
@@ -226,10 +312,25 @@ class SystemAudioRecorderService: NSObject, ObservableObject {
         try? FileManager.default.removeItem(at: destURL)
 
         // Copy from shared container to app sandbox
-        try FileManager.default.copyItem(at: sourceURL, to: destURL)
+        do {
+            try FileManager.default.copyItem(at: sourceURL, to: destURL)
+        } catch {
+            log("⛔ Failed to copy file: \(error)")
+            throw SystemRecordingError.exportFailed
+        }
+
+        // Verify copied file
+        guard FileManager.default.fileExists(atPath: destURL.path) else {
+            log("⛔ Copied file not found at destination")
+            throw SystemRecordingError.exportFailed
+        }
 
         // Clean up shared audio
         try? FileManager.default.removeItem(at: sourceURL)
+        // Also clean up flag file if still present
+        if let flagURL = flagFileURL {
+            try? FileManager.default.removeItem(at: flagURL)
+        }
 
         log("✅ Audio copied → \(currentFileName) (\(String(format: "%.1f", duration))s)")
         return (fileName: currentFileName, duration: duration)
@@ -270,14 +371,16 @@ enum SystemRecordingError: LocalizedError {
     case noAudioTrack
     case exportFailed
     case permissionDenied
+    case appGroupNotAccessible
 
     var errorDescription: String? {
         switch self {
-        case .notAvailable:     return "系统内录在当前设备上不可用"
-        case .notRecording:     return "当前没有在录制"
-        case .noAudioTrack:     return "未找到录制的音频文件"
-        case .exportFailed:     return "音频导出失败"
-        case .permissionDenied: return "录制权限被拒绝"
+        case .notAvailable:         return "系统内录在当前设备上不可用"
+        case .notRecording:         return "当前没有在录制"
+        case .noAudioTrack:         return "录制的音频文件未找到。请确保:\n1. 先点击停止录制按钮结束录制\n2. 等待几秒后再点击处理"
+        case .exportFailed:         return "音频导出失败"
+        case .permissionDenied:     return "录制权限被拒绝"
+        case .appGroupNotAccessible: return "App Group 共享容器不可用，请检查 Entitlements 配置"
         }
     }
 }

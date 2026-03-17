@@ -7,7 +7,7 @@ import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
 
-/// Home page — greeting header + grouped, card-style meeting list
+/// Home page — Modern, clean, Dribbble-inspired Meeting List
 struct MeetingListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Meeting.date, order: .reverse) private var meetings: [Meeting]
@@ -15,6 +15,12 @@ struct MeetingListView: View {
     @State private var showRecording = false
     @State private var showSettings = false
     @State private var showAudioImporter = false
+    
+    // Theme Colors
+    private let primaryBlue = Color(red: 0/255, green: 132/255, blue: 255/255) // #0084FF
+    private let bgLight = Color(red: 248/255, green: 249/255, blue: 251/255)    // #F8F9FB
+    private let textDark = Color(red: 26/255, green: 26/255, blue: 26/255)      // #1A1A1A
+    private let textGray = Color(red: 102/255, green: 102/255, blue: 102/255)   // #666666
 
     // MARK: - Filtering & Grouping
 
@@ -35,19 +41,17 @@ struct MeetingListView: View {
         Calendar.current.isDate(date, equalTo: Date(), toGranularity: .weekOfYear)
     }
 
-    private var thisWeekCount: Int {
-        meetings.filter { isThisWeek($0.date) || Calendar.current.isDateInToday($0.date) }.count
-    }
-
     // MARK: - Body
 
     var body: some View {
         NavigationStack {
             ZStack(alignment: .bottom) {
-                Color(.systemGroupedBackground).ignoresSafeArea()
+                bgLight.ignoresSafeArea()
 
                 VStack(spacing: 0) {
+                    headerSection
                     searchBar
+                    
                     if meetings.isEmpty {
                         emptyStateView
                     } else {
@@ -57,20 +61,7 @@ struct MeetingListView: View {
 
                 newMeetingButton
             }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .principal) { EmptyView() }
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button { showAudioImporter = true } label: {
-                        Image(systemName: "doc.badge.plus").foregroundStyle(.secondary)
-                    }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button { showSettings = true } label: {
-                        Image(systemName: "gear").foregroundStyle(.secondary)
-                    }
-                }
-            }
+            .navigationBarHidden(true)
             .fullScreenCover(isPresented: $showRecording) { RecordingView() }
             .sheet(isPresented: $showSettings)       { SettingsView() }
             .fileImporter(
@@ -83,63 +74,118 @@ struct MeetingListView: View {
         }
     }
 
-    // MARK: - Search Bar
-
-    private var searchBar: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-            TextField("搜索会议记录...", text: $searchText).autocorrectionDisabled()
-            if !searchText.isEmpty {
-                Button { searchText = "" } label: {
-                    Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+    // MARK: - App Header
+    private var headerSection: some View {
+        HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(greetingText)
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .foregroundStyle(textGray)
+                Text("云雀记")
+                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                    .foregroundStyle(textDark)
+                    .tracking(-0.5)
+            }
+            Spacer()
+            
+            HStack(spacing: 12) {
+                Button { showAudioImporter = true } label: {
+                    ZStack {
+                        Circle()
+                            .fill(Color.white)
+                            .frame(width: 44, height: 44)
+                            .shadow(color: .black.opacity(0.04), radius: 8, y: 4)
+                        Image(systemName: "square.and.arrow.down")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(textDark)
+                    }
+                }
+                
+                Button { showSettings = true } label: {
+                    ZStack {
+                        Circle()
+                            .fill(Color.white)
+                            .frame(width: 44, height: 44)
+                            .shadow(color: .black.opacity(0.04), radius: 8, y: 4)
+                        Image(systemName: "slider.horizontal.3")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(textDark)
+                    }
                 }
             }
         }
-        .padding(10)
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .padding(.horizontal, 24)
+        .padding(.top, 16)
+        .padding(.bottom, 12)
+    }
+
+    private var greetingText: String {
+        let h = Calendar.current.component(.hour, from: Date())
+        switch h {
+        case 5..<12:  return "美好清晨 ☀️"
+        case 12..<14: return "午间稍息 🌤"
+        case 14..<18: return "高效午后 🌥"
+        case 18..<22: return "夜间沉淀 🌙"
+        default:      return "静谧深夜 🌃"
+        }
+    }
+
+    // MARK: - Search Bar
+    private var searchBar: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(textGray.opacity(0.6))
+                .font(.system(size: 16, weight: .medium))
+            TextField("搜索会议记录...", text: $searchText)
+                .font(.system(size: 16, weight: .regular))
+                .foregroundStyle(textDark)
+                .autocorrectionDisabled()
+            if !searchText.isEmpty {
+                Button { searchText = "" } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(Color(.systemGray3))
+                }
+            }
+        }
         .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(Color(.systemGroupedBackground))
+        .padding(.vertical, 14)
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .shadow(color: .black.opacity(0.02), radius: 8, y: 4)
+        .padding(.horizontal, 24)
+        .padding(.bottom, 16)
     }
 
     // MARK: - Meeting List (grouped sections)
-
     private var meetingListContent: some View {
-        ScrollView {
-            LazyVStack(spacing: 0, pinnedViews: .sectionHeaders) {
-
-                headerSection.padding(.bottom, 4)
-
+        ScrollView(showsIndicators: false) {
+            LazyVStack(spacing: 20, pinnedViews: []) {
                 if !searchText.isEmpty {
-                    // Flat list while searching
                     cardRows(for: filteredMeetings)
-                    Spacer().frame(height: 110)
+                    Spacer().frame(height: 120)
                 } else {
                     if !todayMeetings.isEmpty {
-                        Section {
+                        VStack(alignment: .leading, spacing: 12) {
+                            sectionLabel("今天")
                             cardRows(for: todayMeetings)
-                        } header: {
-                            sectionLabel("今天", count: todayMeetings.count)
                         }
                     }
                     if !weekMeetings.isEmpty {
-                        Section {
+                        VStack(alignment: .leading, spacing: 12) {
+                            sectionLabel("本周")
                             cardRows(for: weekMeetings)
-                        } header: {
-                            sectionLabel("本周", count: weekMeetings.count)
                         }
                     }
                     if !olderMeetings.isEmpty {
-                        Section {
+                        VStack(alignment: .leading, spacing: 12) {
+                            sectionLabel("更早之前")
                             cardRows(for: olderMeetings)
-                        } header: {
-                            sectionLabel("更早", count: olderMeetings.count)
                         }
                     }
-                    Spacer().frame(height: 110)
+                    Spacer().frame(height: 120)
                 }
             }
+            .padding(.top, 8)
         }
     }
 
@@ -150,8 +196,13 @@ struct MeetingListView: View {
                 MeetingRowView(meeting: meeting)
             }
             .buttonStyle(PlainButtonStyle())
-            .padding(.horizontal, 16)
-            .padding(.vertical, 4)
+            .padding(.horizontal, 24)
+            .contextMenu {
+                Button(role: .destructive) { deleteMeeting(meeting) } label: {
+                    Label("删除记录", systemImage: "trash")
+                }
+            }
+            // For swipe to delete
             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                 Button(role: .destructive) { deleteMeeting(meeting) } label: {
                     Label("删除", systemImage: "trash")
@@ -160,118 +211,68 @@ struct MeetingListView: View {
         }
     }
 
-    // MARK: - App Header
-
-    private var headerSection: some View {
-        HStack(alignment: .bottom) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(greetingText)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                Text("会议记录")
-                    .font(.system(size: 32, weight: .bold, design: .rounded))
-            }
-            Spacer()
-            VStack(spacing: 2) {
-                Text("\(thisWeekCount)")
-                    .font(.system(size: 26, weight: .bold, design: .rounded))
-                    .foregroundStyle(.blue)
-                Text("本周")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(width: 54, height: 54)
-            .background(Color.blue.opacity(0.1))
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-        }
-        .padding(.horizontal, 20)
-        .padding(.top, 8)
-        .padding(.bottom, 12)
-    }
-
-    private var greetingText: String {
-        let h = Calendar.current.component(.hour, from: Date())
-        switch h {
-        case 5..<12:  return "早上好 ☀️"
-        case 12..<14: return "中午好 🌤"
-        case 14..<18: return "下午好 🌥"
-        case 18..<22: return "晚上好 🌙"
-        default:      return "深夜好 🌃"
-        }
-    }
-
-    // MARK: - Section Label
-
-    private func sectionLabel(_ title: String, count: Int) -> some View {
-        HStack {
-            Text(title)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.secondary)
-            Text("\(count)").font(.caption).foregroundStyle(.tertiary)
-            Spacer()
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 6)
-        .background(Color(.systemGroupedBackground))
+    private func sectionLabel(_ title: String) -> some View {
+        Text(title)
+            .font(.system(size: 14, weight: .bold, design: .rounded))
+            .foregroundStyle(textGray.opacity(0.8))
+            .padding(.horizontal, 28)
+            .padding(.top, 8)
     }
 
     // MARK: - Empty State
-
     private var emptyStateView: some View {
         VStack(spacing: 24) {
-            Spacer()
-
-            headerSection
-
-            Spacer()
-
+            Spacer().frame(height: 60)
+            
             ZStack {
                 Circle()
-                    .fill(Color.blue.opacity(0.08))
+                    .fill(Color.white)
                     .frame(width: 120, height: 120)
-                Image(systemName: "waveform.circle.fill")
-                    .font(.system(size: 60))
-                    .foregroundStyle(.blue.opacity(0.4))
+                    .shadow(color: .black.opacity(0.03), radius: 20, y: 10)
+                
+                Image(systemName: "waveform")
+                    .font(.system(size: 44, weight: .light))
+                    .foregroundStyle(textGray.opacity(0.4))
             }
 
             VStack(spacing: 8) {
-                Text("还没有会议记录").font(.title3.bold())
-                Text("点击下方按钮开始第一次录音")
-                    .font(.subheadline).foregroundStyle(.secondary)
-            }
+                Text("暂无录音记录")
+                    .font(.system(size: 20, weight: .semibold, design: .rounded))
+                    .foregroundStyle(textDark)
 
-            Spacer()
+                Text("所有的思绪与会议，都将在这里被妥善保存。\n点击下方按钮，留住这一刻的声音。")
+                    .font(.system(size: 15, weight: .regular))
+                    .foregroundStyle(textGray)
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(4)
+            }
+            .padding(.horizontal, 40)
+            
             Spacer()
         }
-        .frame(maxWidth: .infinity)
-        .padding(.bottom, 100)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: - FAB
-
     private var newMeetingButton: some View {
         Button { showRecording = true } label: {
-            HStack(spacing: 10) {
-                Image(systemName: "mic.fill").font(.headline)
-                Text("开始录音").fontWeight(.semibold)
+            HStack(spacing: 12) {
+                Image(systemName: "mic.fill")
+                    .font(.system(size: 20, weight: .bold))
+                Text("开始录音")
+                    .font(.system(size: 17, weight: .bold, design: .rounded))
             }
             .foregroundColor(.white)
-            .padding(.horizontal, 30)
-            .padding(.vertical, 16)
-            .background(
-                LinearGradient(
-                    colors: [Color(red: 1, green: 0.25, blue: 0.25), Color(red: 0.85, green: 0.1, blue: 0.3)],
-                    startPoint: .topLeading, endPoint: .bottomTrailing
-                )
-            )
+            .padding(.horizontal, 32)
+            .padding(.vertical, 18)
+            .background(primaryBlue)
             .clipShape(Capsule())
-            .shadow(color: .red.opacity(0.35), radius: 12, y: 6)
+            .shadow(color: primaryBlue.opacity(0.3), radius: 16, y: 8)
         }
         .padding(.bottom, 32)
     }
 
     // MARK: - Delete
-
     private func deleteMeeting(_ meeting: Meeting) {
         withAnimation {
             if let url = meeting.audioFileURL { try? FileManager.default.removeItem(at: url) }
@@ -280,15 +281,12 @@ struct MeetingListView: View {
     }
 
     // MARK: - Import Audio File
-
     private func importAudioFile(result: Result<[URL], Error>) {
         guard case .success(let urls) = result, let sourceURL = urls.first else { return }
 
-        // Start security-scoped access
         guard sourceURL.startAccessingSecurityScopedResource() else { return }
         defer { sourceURL.stopAccessingSecurityScopedResource() }
 
-        // Copy file to Recordings directory
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
         let recordingsDir = docs.appendingPathComponent("Recordings")
         try? FileManager.default.createDirectory(at: recordingsDir, withIntermediateDirectories: true)
@@ -305,7 +303,6 @@ struct MeetingListView: View {
             return
         }
 
-        // Create a new Meeting with the imported audio
         let meeting = Meeting(title: "导入: \(sourceURL.deletingPathExtension().lastPathComponent)", date: Date())
         meeting.audioFileName = fileName
         meeting.status = .completed
@@ -315,40 +312,33 @@ struct MeetingListView: View {
 }
 
 // MARK: - Meeting Row Card
-
 struct MeetingRowView: View {
     let meeting: Meeting
-
+    
+    private let primaryBlue = Color(red: 0/255, green: 132/255, blue: 255/255)
+    private let textDark = Color(red: 26/255, green: 26/255, blue: 26/255)
+    private let textGray = Color(red: 102/255, green: 102/255, blue: 102/255)
+    
     private var statusColor: Color {
         switch meeting.status {
         case .recording:    return .red
         case .transcribing: return .orange
         case .summarizing:  return .purple
-        case .completed:    return .blue
+        case .completed:    return primaryBlue
         case .failed:       return Color(.systemGray)
         }
     }
-
-    private var statusIcon: String {
-        switch meeting.status {
-        case .recording:    return "mic.fill"
-        case .transcribing: return "text.bubble"
-        case .summarizing:  return "brain"
-        case .completed:    return "checkmark.circle.fill"
-        case .failed:       return "exclamationmark.triangle.fill"
-        }
-    }
-
+    
     private var statusLabel: String {
         switch meeting.status {
         case .recording:    return "录音中"
         case .transcribing: return "转写中"
-        case .summarizing:  return "分析中"
-        case .completed:    return "完成"
+        case .summarizing:  return "处理中"
+        case .completed:    return "已完成"
         case .failed:       return "失败"
         }
     }
-
+    
     private var relativeDate: String {
         if Calendar.current.isDateInToday(meeting.date) {
             return meeting.date.formatted(date: .omitted, time: .shortened)
@@ -357,102 +347,112 @@ struct MeetingRowView: View {
         }
         return meeting.date.formatted(date: .abbreviated, time: .shortened)
     }
-
+    
     var body: some View {
-        HStack(spacing: 0) {
-            // Left accent bar
-            RoundedRectangle(cornerRadius: 2)
-                .fill(statusColor)
-                .frame(width: 4)
-                .padding(.vertical, 16)
-                .padding(.leading, 14)
-
-            VStack(alignment: .leading, spacing: 8) {
-
-                // Title + Status pill
-                HStack(alignment: .top, spacing: 6) {
-                    Text(meeting.title.isEmpty ? "未命名会议" : meeting.title)
-                        .font(.headline)
-                        .lineLimit(2)
-                        .foregroundStyle(.primary)
-                    Spacer(minLength: 4)
+        VStack(alignment: .leading, spacing: 14) {
+            // Header: Title & Status Pill
+            HStack(alignment: .top, spacing: 12) {
+                Text(meeting.title.isEmpty ? "未命名记录" : meeting.title)
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .foregroundStyle(textDark)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                
+                Spacer(minLength: 8)
+                
+                if meeting.status != .completed {
                     statusPill
                 }
-
-                // Date + Duration tags
+            }
+            
+            // Preview Content
+            if !meeting.summary.isEmpty {
+                Text(meeting.summary)
+                    .font(.system(size: 15, weight: .regular))
+                    .foregroundStyle(textGray)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else if !meeting.transcript.isEmpty {
+                Text(meeting.transcript)
+                    .font(.system(size: 15, weight: .regular))
+                    .foregroundStyle(textGray)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                Text(meeting.status == .completed ? "无摘要内容" : "正在处理数据...")
+                    .font(.system(size: 15, weight: .regular))
+                    .foregroundStyle(textGray.opacity(0.5))
+                    .italic()
+            }
+            
+            // Bottom Meta Row
+            HStack(alignment: .center) {
                 HStack(spacing: 6) {
-                    chip(icon: "calendar", text: relativeDate)
-                    if meeting.duration > 0 { chip(icon: "clock", text: meeting.formattedDuration) }
+                    Image(systemName: "calendar")
+                        .font(.system(size: 13))
+                    Text(relativeDate)
+                        .font(.system(size: 13, weight: .medium))
                 }
-
-                // Summary preview
-                if !meeting.summary.isEmpty {
-                    Text(meeting.summary)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-
-                // Bottom badges
-                if !meeting.actionItems.isEmpty || !meeting.richNotes.isEmpty || !meeting.tingwuNotes.isEmpty {
-                    HStack(spacing: 10) {
-                        if !meeting.actionItems.isEmpty {
-                            let done  = meeting.actionItems.filter(\.isCompleted).count
-                            let total = meeting.actionItems.count
-                            badge(icon: done == total ? "checkmark.circle.fill" : "circle",
-                                  text: "\(done)/\(total) 任务",
-                                  color: done == total ? .green : .blue)
-                        }
-                        if !meeting.richNotes.isEmpty {
-                            badge(icon: "sparkles", text: "图文纪要", color: .purple)
-                        }
-                        if !meeting.tingwuNotes.isEmpty {
-                            badge(icon: "waveform.badge.magnifyingglass", text: "智能纪要", color: .indigo)
-                        }
+                .foregroundStyle(textGray.opacity(0.8))
+                
+                if meeting.duration > 0 {
+                    Spacer().frame(width: 16)
+                    HStack(spacing: 6) {
+                        Image(systemName: "clock")
+                            .font(.system(size: 13))
+                        Text(meeting.formattedDuration)
+                            .font(.system(size: 13, weight: .medium, design: .monospaced))
                     }
+                    .foregroundStyle(textGray.opacity(0.8))
+                }
+                
+                Spacer()
+                
+                // Action Items Badge
+                if !meeting.actionItems.isEmpty {
+                    let done = meeting.actionItems.filter(\.isCompleted).count
+                    let total = meeting.actionItems.count
+                    let isAllDone = done == total
+                    
+                    HStack(spacing: 4) {
+                        Image(systemName: isAllDone ? "checkmark.circle.fill" : "checklist")
+                            .font(.system(size: 12))
+                        Text("\(done)/\(total)")
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(isAllDone ? Color.green.opacity(0.1) : primaryBlue.opacity(0.1))
+                    .foregroundStyle(isAllDone ? Color.green : primaryBlue)
+                    .clipShape(Capsule())
                 }
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 14)
         }
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 3)
+        .padding(20)
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .shadow(color: .black.opacity(0.03), radius: 15, y: 8)
     }
-
+    
     @ViewBuilder
     private var statusPill: some View {
         HStack(spacing: 4) {
-            if meeting.status != .completed {
-                Image(systemName: statusIcon).font(.caption2)
+            if meeting.status == .recording {
+                Circle()
+                    .fill(Color.red)
+                    .frame(width: 6, height: 6)
+            } else {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.system(size: 10, weight: .bold))
             }
-            Text(statusLabel).font(.caption2).fontWeight(.medium)
+            Text(statusLabel)
+                .font(.system(size: 11, weight: .bold, design: .rounded))
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(statusColor.opacity(0.12))
+        .background(statusColor.opacity(0.1))
         .foregroundStyle(statusColor)
         .clipShape(Capsule())
-    }
-
-    private func chip(icon: String, text: String) -> some View {
-        HStack(spacing: 3) {
-            Image(systemName: icon).font(.caption2)
-            Text(text).font(.caption2)
-        }
-        .foregroundStyle(.secondary)
-        .padding(.horizontal, 7)
-        .padding(.vertical, 3)
-        .background(Color(.systemGray5))
-        .clipShape(Capsule())
-    }
-
-    private func badge(icon: String, text: String, color: Color) -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: icon).font(.caption2)
-            Text(text).font(.caption2).fontWeight(.medium)
-        }
-        .foregroundStyle(color)
     }
 }
 
