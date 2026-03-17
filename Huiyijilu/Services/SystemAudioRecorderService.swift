@@ -2,8 +2,9 @@
 //  SystemAudioRecorderService.swift
 //  Huiyijilu
 //
-//  使用 ReplayKit 实现系统内录功能（屏幕录制 → 提取音频）。
-//  可录制系统声音 + 麦克风，适用于录制在线会议等场景。
+//  管理 ReplayKit Broadcast Extension 的生命周期。
+//  通过 App Group 共享容器读取扩展录制的音频文件，
+//  通过 Darwin Notification 感知扩展的开始/停止事件。
 //
 
 import Foundation
@@ -11,9 +12,10 @@ import ReplayKit
 import AVFoundation
 import Combine
 
-/// ReplayKit-based system audio recorder.
-/// Uses `RPScreenRecorder.startRecording()` to capture system audio + microphone,
-/// then extracts audio from the screen recording video as .m4a.
+/// Manages the ReplayKit Broadcast Extension lifecycle.
+/// The extension writes audio to the App Group shared container;
+/// this service monitors for start/stop events and copies the audio
+/// to the app's Recordings directory for processing.
 @MainActor
 class SystemAudioRecorderService: NSObject, ObservableObject {
 
@@ -22,19 +24,28 @@ class SystemAudioRecorderService: NSObject, ObservableObject {
     @Published var recordingTime: TimeInterval = 0
     @Published var audioLevel: Float = 0
 
+    // MARK: - Constants
+    static let appGroupID = "group.com.ceshi.ceshimainapp"
+    static let audioFileName = "broadcast_recording.m4a"
+    static let recordingFlagFile = "is_recording"
+    /// Must match the value in HuiyijiluBroadcast target's bundle id
+    static let broadcastExtensionBundleID = "com.ceshi.ceshimainapp.HuiyijiluBroadcast"
+
     // MARK: - Internal
-    private let screenRecorder = RPScreenRecorder.shared()
     private var timer: Timer?
     private var startDate: Date?
     private(set) var currentFileName: String = ""
 
-    /// Whether screen recording is available on this device.
-    var isAvailable: Bool { screenRecorder.isAvailable }
+    private var sharedContainerURL: URL? {
+        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: Self.appGroupID)
+    }
 
-    // MARK: - Paths
+    private var sharedAudioURL: URL? {
+        sharedContainerURL?.appendingPathComponent(Self.audioFileName)
+    }
 
-    private var tempVideoURL: URL {
-        FileManager.default.temporaryDirectory.appendingPathComponent("rp_screen_recording.mp4")
+    private var flagFileURL: URL? {
+        sharedContainerURL?.appendingPathComponent(Self.recordingFlagFile)
     }
 
     private var recordingsDir: URL {
@@ -42,128 +53,114 @@ class SystemAudioRecorderService: NSObject, ObservableObject {
         return docs.appendingPathComponent("Recordings")
     }
 
+    /// Whether app group is accessible (false on simulator without entitlements)
+    var isAvailable: Bool { sharedContainerURL != nil }
+
     private func log(_ msg: String) { print("[SystemRec] \(msg)") }
 
-    // MARK: - Start Recording
+    // MARK: - Init / Deinit
 
-    func startRecording() async throws {
-        guard screenRecorder.isAvailable else {
-            log("⛔ Screen recording not available")
-            throw SystemRecordingError.notAvailable
-        }
+    override init() {
+        super.init()
+        // Register for Darwin notifications from the broadcast extension
+        registerDarwinNotifications()
+        // Check if a broadcast was already running (e.g. app relaunched during broadcast)
+        checkExistingBroadcast()
+    }
 
-        // Clean up any previous temp video
-        try? FileManager.default.removeItem(at: tempVideoURL)
+    // MARK: - Darwin Notification Observers
 
-        // Enable microphone so we capture device mic + system audio
-        screenRecorder.isMicrophoneEnabled = true
+    private func registerDarwinNotifications() {
+        let center = CFNotificationCenterGetDarwinNotifyCenter()
 
-        log("▶ Requesting screen recording permission...")
-
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            screenRecorder.startRecording { [weak self] error in
-                if let error = error {
-                    self?.log("⛔ startRecording failed: \(error.localizedDescription)")
-                    continuation.resume(throwing: error)
-                } else {
-                    self?.log("✅ Screen recording started")
-                    continuation.resume()
+        // Broadcast started
+        CFNotificationCenterAddObserver(
+            center, Unmanaged.passUnretained(self).toOpaque(),
+            { _, observer, _, _, _ in
+                guard let observer = observer else { return }
+                let service = Unmanaged<SystemAudioRecorderService>.fromOpaque(observer).takeUnretainedValue()
+                Task { @MainActor in
+                    service.handleBroadcastStarted()
                 }
-            }
-        }
+            },
+            "com.huiyijilu.broadcast.started" as CFString,
+            nil, .deliverImmediately
+        )
 
+        // Broadcast stopped
+        CFNotificationCenterAddObserver(
+            center, Unmanaged.passUnretained(self).toOpaque(),
+            { _, observer, _, _, _ in
+                guard let observer = observer else { return }
+                let service = Unmanaged<SystemAudioRecorderService>.fromOpaque(observer).takeUnretainedValue()
+                Task { @MainActor in
+                    service.handleBroadcastStopped()
+                }
+            },
+            "com.huiyijilu.broadcast.stopped" as CFString,
+            nil, .deliverImmediately
+        )
+    }
+
+    private func checkExistingBroadcast() {
+        if let flagURL = flagFileURL, FileManager.default.fileExists(atPath: flagURL.path) {
+            log("🔄 Detected ongoing broadcast — resuming tracking")
+            handleBroadcastStarted()
+        }
+    }
+
+    // MARK: - Broadcast Events
+
+    private func handleBroadcastStarted() {
+        guard !isRecording else { return }
+        log("▶ Broadcast started")
         isRecording = true
         startDate = Date()
         startTimer()
     }
 
-    // MARK: - Stop Recording
+    private func handleBroadcastStopped() {
+        guard isRecording else { return }
+        log("⏹ Broadcast stopped")
+        stopTimer()
+        isRecording = false
+    }
 
-    /// Stop recording, extract audio from video, return file name and duration.
-    func stopRecording() async throws -> (fileName: String, duration: TimeInterval) {
-        guard isRecording else {
-            throw SystemRecordingError.notRecording
+    // MARK: - Collect Audio
+
+    /// Copy the recorded audio from the shared container to the app's Recordings directory.
+    /// Returns the local file name and duration.
+    func collectRecordedAudio() async throws -> (fileName: String, duration: TimeInterval) {
+        let duration = recordingTime
+        recordingTime = 0
+        startDate = nil
+
+        guard let sourceURL = sharedAudioURL,
+              FileManager.default.fileExists(atPath: sourceURL.path) else {
+            throw SystemRecordingError.noAudioTrack
         }
 
-        let duration = recordingTime
-        stopTimer()
-
-        // Ensure recordings directory exists
+        // Ensure recordings directory
         if !FileManager.default.fileExists(atPath: recordingsDir.path) {
             try FileManager.default.createDirectory(at: recordingsDir, withIntermediateDirectories: true)
         }
 
-        // Generate unique file name
         let fmt = DateFormatter()
         fmt.dateFormat = "yyyyMMdd_HHmmss"
         currentFileName = "meeting_sys_\(fmt.string(from: Date())).m4a"
-        let audioOutputURL = recordingsDir.appendingPathComponent(currentFileName)
+        let destURL = recordingsDir.appendingPathComponent(currentFileName)
 
-        let videoURL = tempVideoURL
-        log("⏹ Stopping screen recording → \(videoURL.lastPathComponent)")
+        // Remove existing
+        try? FileManager.default.removeItem(at: destURL)
 
-        // Stop screen recording → save to temp video file
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            screenRecorder.stopRecording(withOutput: videoURL) { [weak self] error in
-                if let error = error {
-                    self?.log("⛔ stopRecording failed: \(error.localizedDescription)")
-                    continuation.resume(throwing: error)
-                } else {
-                    self?.log("✅ Screen recording saved")
-                    continuation.resume()
-                }
-            }
-        }
+        // Copy from shared container to app sandbox
+        try FileManager.default.copyItem(at: sourceURL, to: destURL)
 
-        // Extract audio from video → .m4a
-        log("🔄 Extracting audio...")
-        try await extractAudio(from: videoURL, to: audioOutputURL)
-        log("✅ Audio extracted → \(currentFileName)")
+        // Clean up shared audio
+        try? FileManager.default.removeItem(at: sourceURL)
 
-        // Clean up temp video
-        try? FileManager.default.removeItem(at: videoURL)
-
-        isRecording = false
-        recordingTime = 0
-        startDate = nil
-
+        log("✅ Audio copied → \(currentFileName) (\(String(format: "%.1f", duration))s)")
         return (fileName: currentFileName, duration: duration)
-    }
-
-    // MARK: - Audio Extraction
-
-    /// Extract audio track from a video file and export as .m4a (AAC).
-    private func extractAudio(from videoURL: URL, to audioURL: URL) async throws {
-        let asset = AVAsset(url: videoURL)
-
-        // Verify the asset has an audio track
-        let audioTracks = try await asset.loadTracks(withMediaType: .audio)
-        guard !audioTracks.isEmpty else {
-            log("⚠️ No audio track found in recording")
-            throw SystemRecordingError.noAudioTrack
-        }
-
-        guard let exportSession = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetAppleM4A) else {
-            throw SystemRecordingError.exportFailed
-        }
-
-        // Remove existing file
-        try? FileManager.default.removeItem(at: audioURL)
-
-        exportSession.outputURL = audioURL
-        exportSession.outputFileType = .m4a
-
-        await exportSession.export()
-
-        if let error = exportSession.error {
-            log("⛔ Export error: \(error.localizedDescription)")
-            throw error
-        }
-
-        guard exportSession.status == .completed else {
-            log("⛔ Export status: \(exportSession.status.rawValue)")
-            throw SystemRecordingError.exportFailed
-        }
     }
 
     // MARK: - Timer
@@ -173,7 +170,6 @@ class SystemAudioRecorderService: NSObject, ObservableObject {
             Task { @MainActor in
                 guard let self = self, let start = self.startDate else { return }
                 self.recordingTime = Date().timeIntervalSince(start)
-                // Simulate audio level animation (ReplayKit doesn't provide real-time metering)
                 let wave = sin(self.recordingTime * 4) * 0.25 + 0.35
                 self.audioLevel = Float(max(0, min(1, wave + Double.random(in: -0.08...0.08))))
             }
@@ -197,11 +193,11 @@ enum SystemRecordingError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .notAvailable:    return "屏幕录制在当前设备上不可用（模拟器不支持）"
-        case .notRecording:    return "当前没有在录制"
-        case .noAudioTrack:    return "录制的视频中没有音频轨道"
-        case .exportFailed:    return "音频导出失败"
-        case .permissionDenied: return "屏幕录制权限被拒绝，请在系统设置中打开"
+        case .notAvailable:     return "系统内录在当前设备上不可用"
+        case .notRecording:     return "当前没有在录制"
+        case .noAudioTrack:     return "未找到录制的音频文件"
+        case .exportFailed:     return "音频导出失败"
+        case .permissionDenied: return "录制权限被拒绝"
         }
     }
 }

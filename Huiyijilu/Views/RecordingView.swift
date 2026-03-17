@@ -218,34 +218,66 @@ struct RecordingView: View {
                     }
                 }
 
-                // Stop
-                Button {
-                    stopAndProcess()
-                } label: {
-                    Image(systemName: "stop.fill")
-                        .font(.title)
-                        .foregroundColor(.white)
+                if mode == .system {
+                    // System mode: show broadcast picker again (user taps to end broadcast)
+                    VStack(spacing: 8) {
+                        BroadcastButton(isRecording: true)
+                        Text("点击结束录制")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    // Also show a "Process" button to collect audio after broadcast ends
+                    Button {
+                        stopAndProcess()
+                    } label: {
+                        VStack(spacing: 6) {
+                            Image(systemName: "arrow.down.circle.fill")
+                                .font(.title)
+                                .foregroundColor(.white)
+                            Text("处理")
+                                .font(.caption2)
+                                .foregroundColor(.white)
+                        }
                         .frame(width: 72, height: 72)
-                        .background(
-                            Circle().fill(mode == .system ? Color.purple : Color.red)
-                        )
-                        .shadow(color: (mode == .system ? Color.purple : Color.red).opacity(0.3), radius: 8, y: 4)
+                        .background(Circle().fill(Color.blue))
+                        .shadow(color: .blue.opacity(0.3), radius: 8, y: 4)
+                    }
+                } else {
+                    // Mic mode: Stop button
+                    Button {
+                        stopAndProcess()
+                    } label: {
+                        Image(systemName: "stop.fill")
+                            .font(.title)
+                            .foregroundColor(.white)
+                            .frame(width: 72, height: 72)
+                            .background(Circle().fill(Color.red))
+                            .shadow(color: .red.opacity(0.3), radius: 8, y: 4)
+                    }
                 }
             } else {
-                // Start
-                Button {
-                    startRecording()
-                } label: {
-                    Image(systemName: mode == .system ? "record.circle" : "mic.fill")
-                        .font(.largeTitle)
-                        .foregroundColor(.white)
-                        .frame(width: 80, height: 80)
-                        .background(
-                            Circle().fill(mode == .system ? Color.purple : Color.red)
-                        )
-                        .shadow(color: (mode == .system ? Color.purple : Color.red).opacity(0.3), radius: 8, y: 4)
+                if mode == .system {
+                    // System mode: show broadcast picker (triggers "开始直播" dialog)
+                    VStack(spacing: 12) {
+                        BroadcastButton(isRecording: false)
+                        Text("点击开始系统录制")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                } else {
+                    // Mic mode: Start button
+                    Button {
+                        startRecording()
+                    } label: {
+                        Image(systemName: "mic.fill")
+                            .font(.largeTitle)
+                            .foregroundColor(.white)
+                            .frame(width: 80, height: 80)
+                            .background(Circle().fill(Color.red))
+                            .shadow(color: .red.opacity(0.3), radius: 8, y: 4)
+                    }
                 }
-                .disabled(mode == .system && !systemRecorder.isAvailable)
             }
         }
     }
@@ -280,11 +312,8 @@ struct RecordingView: View {
             }
 
             do {
-                if mode == .system {
-                    try await systemRecorder.startRecording()
-                } else {
-                    try recorder.startRecording()
-                }
+                // System mode uses broadcast picker — no programmatic start needed
+                try recorder.startRecording()
             } catch {
                 errorMessage = "录音启动失败: \(error.localizedDescription)"
                 showError = true
@@ -295,11 +324,8 @@ struct RecordingView: View {
     private func cancelRecording() {
         if mode == .microphone && recorder.isRecording {
             recorder.stopRecording()
-        } else if mode == .system && systemRecorder.isRecording {
-            Task {
-                try? await systemRecorder.stopRecording()
-            }
         }
+        // System mode: can't programmatically stop broadcast; user must tap broadcast picker
         dismiss()
     }
 
@@ -309,18 +335,17 @@ struct RecordingView: View {
             var duration: TimeInterval
 
             if mode == .system {
-                // System recording: async stop + audio extraction
+                // Collect audio from the broadcast extension's shared container
                 do {
-                    let result = try await systemRecorder.stopRecording()
+                    let result = try await systemRecorder.collectRecordedAudio()
                     fileName = result.fileName
                     duration = result.duration
                 } catch {
-                    errorMessage = "停止录制失败: \(error.localizedDescription)"
+                    errorMessage = "获取录制音频失败: \(error.localizedDescription)"
                     showError = true
                     return
                 }
             } else {
-                // Microphone recording: sync stop
                 let result = recorder.stopRecording()
                 fileName = result.fileName
                 duration = result.duration
