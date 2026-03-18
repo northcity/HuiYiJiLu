@@ -80,6 +80,10 @@ iOSInjectionProject/
 /Services/
 /会议图文纪要-副本ug37/
 
+# Secrets (开发者私有密钥，不上传 Git)
+**/Secrets.swift
+!**/Secrets.template.swift
+
 # macOS
 .DS_Store
 .AppleDouble

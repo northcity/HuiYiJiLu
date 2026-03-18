@@ -1,69 +1,103 @@
 //
 //  MeetingListView.swift
-//  Huiyijilu
+//  云雀记 (LarkNote)
+//
+//  全新设计的首页 — iOS 17+ 风格，卡片式会议列表
+//  设计理念：高级感 · 信息层级清晰 · 快速操作
 //
 
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
 
-/// Home page — Modern, clean, Dribbble-inspired Meeting List
+// MARK: - Design Tokens
+
+private enum Design {
+    static let accent     = Color(red: 0.13, green: 0.47, blue: 1.0)   // #2178FF
+    static let bgPrimary  = Color(.systemGroupedBackground)
+    static let bgCard     = Color(.systemBackground)
+    static let textTitle  = Color(.label)
+    static let textBody   = Color(.secondaryLabel)
+    static let textMuted  = Color(.tertiaryLabel)
+    static let cardRadius: CGFloat = 20
+    static let cardPadding: CGFloat = 20
+    static let horizontalPadding: CGFloat = 20
+    static let cardShadow = Color.black.opacity(0.06)
+    static let titleFont  = Font.system(size: 34, weight: .bold, design: .rounded)
+    static let headlineFont = Font.system(size: 15, weight: .semibold, design: .rounded)
+    static let bodyFont   = Font.system(size: 15, weight: .regular)
+    static let captionFont = Font.system(size: 13, weight: .medium)
+}
+
+// MARK: - Home View
+
 struct MeetingListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Meeting.date, order: .reverse) private var meetings: [Meeting]
+    
     @State private var searchText = ""
     @State private var showRecording = false
     @State private var showSettings = false
     @State private var showAudioImporter = false
     
-    // Theme Colors
-    private let primaryBlue = Color(red: 0/255, green: 132/255, blue: 255/255) // #0084FF
-    private let bgLight = Color(red: 248/255, green: 249/255, blue: 251/255)    // #F8F9FB
-    private let textDark = Color(red: 26/255, green: 26/255, blue: 26/255)      // #1A1A1A
-    private let textGray = Color(red: 102/255, green: 102/255, blue: 102/255)   // #666666
-
     // MARK: - Filtering & Grouping
-
-    var filteredMeetings: [Meeting] {
-        guard !searchText.isEmpty else { return meetings }
-        return meetings.filter {
-            $0.title.localizedCaseInsensitiveContains(searchText) ||
-            $0.transcript.localizedCaseInsensitiveContains(searchText) ||
-            $0.summary.localizedCaseInsensitiveContains(searchText)
+    
+    private var filteredMeetings: [Meeting] {
+        var list = meetings
+        if !searchText.isEmpty {
+            list = list.filter {
+                $0.title.localizedCaseInsensitiveContains(searchText) ||
+                $0.transcript.localizedCaseInsensitiveContains(searchText) ||
+                $0.summary.localizedCaseInsensitiveContains(searchText)
+            }
         }
+        return list
     }
-
-    private var todayMeetings:  [Meeting] { filteredMeetings.filter { Calendar.current.isDateInToday($0.date) } }
-    private var weekMeetings:   [Meeting] { filteredMeetings.filter { !Calendar.current.isDateInToday($0.date) && isThisWeek($0.date) } }
-    private var olderMeetings:  [Meeting] { filteredMeetings.filter { !isThisWeek($0.date) } }
-
+    
+    private var todayMeetings: [Meeting] {
+        filteredMeetings.filter { Calendar.current.isDateInToday($0.date) }
+    }
+    private var weekMeetings: [Meeting] {
+        filteredMeetings.filter { !Calendar.current.isDateInToday($0.date) && isThisWeek($0.date) }
+    }
+    private var olderMeetings: [Meeting] {
+        filteredMeetings.filter { !isThisWeek($0.date) }
+    }
+    
     private func isThisWeek(_ date: Date) -> Bool {
         Calendar.current.isDate(date, equalTo: Date(), toGranularity: .weekOfYear)
     }
-
+    
     // MARK: - Body
-
+    
     var body: some View {
         NavigationStack {
             ZStack(alignment: .bottom) {
-                bgLight.ignoresSafeArea()
-
-                VStack(spacing: 0) {
-                    headerSection
-                    searchBar
-                    
-                    if meetings.isEmpty {
-                        emptyStateView
-                    } else {
-                        meetingListContent
+                Design.bgPrimary.ignoresSafeArea()
+                
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 0) {
+                        headerView
+                        quickActionsBar
+                        searchBarView
+                        
+                        if meetings.isEmpty {
+                            emptyStateView
+                        } else if filteredMeetings.isEmpty {
+                            noResultsView
+                        } else {
+                            meetingListContent
+                        }
                     }
+                    .padding(.bottom, 100)
                 }
-
-                newMeetingButton
+                .refreshable { /* Pull to refresh */ }
+                
+                fabButton
             }
             .navigationBarHidden(true)
             .fullScreenCover(isPresented: $showRecording) { RecordingView() }
-            .sheet(isPresented: $showSettings)       { SettingsView() }
+            .sheet(isPresented: $showSettings) { SettingsView() }
             .fileImporter(
                 isPresented: $showAudioImporter,
                 allowedContentTypes: [.audio, .mpeg4Audio, .mp3, .wav, .aiff],
@@ -73,236 +107,321 @@ struct MeetingListView: View {
             }
         }
     }
-
-    // MARK: - App Header
-    private var headerSection: some View {
-        HStack(alignment: .center) {
+    
+    // =======
+    // MARK: - Header
+    // =======
+    
+    private var headerView: some View {
+        HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 6) {
                 Text(greetingText)
-                    .font(.system(size: 15, weight: .semibold, design: .rounded))
-                    .foregroundStyle(textGray)
+                    .font(Design.headlineFont)
+                    .foregroundStyle(Design.textBody)
+                
                 Text("云雀记")
-                    .font(.system(size: 34, weight: .bold, design: .rounded))
-                    .foregroundStyle(textDark)
+                    .font(Design.titleFont)
+                    .foregroundStyle(Design.textTitle)
                     .tracking(-0.5)
+                
+                if !meetings.isEmpty {
+                    Text(statsText)
+                        .font(Design.captionFont)
+                        .foregroundStyle(Design.textMuted)
+                        .padding(.top, 2)
+                }
             }
+            
             Spacer()
             
-            HStack(spacing: 12) {
-                Button { showAudioImporter = true } label: {
-                    ZStack {
-                        Circle()
-                            .fill(Color.white)
-                            .frame(width: 44, height: 44)
-                            .shadow(color: .black.opacity(0.04), radius: 8, y: 4)
-                        Image(systemName: "square.and.arrow.down")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(textDark)
-                    }
-                }
-                
-                Button { showSettings = true } label: {
-                    ZStack {
-                        Circle()
-                            .fill(Color.white)
-                            .frame(width: 44, height: 44)
-                            .shadow(color: .black.opacity(0.04), radius: 8, y: 4)
-                        Image(systemName: "slider.horizontal.3")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(textDark)
-                    }
-                }
+            Button { showSettings = true } label: {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(Design.textBody)
+                    .frame(width: 44, height: 44)
+                    .background(.ultraThinMaterial, in: Circle())
             }
         }
-        .padding(.horizontal, 24)
+        .padding(.horizontal, Design.horizontalPadding)
         .padding(.top, 16)
-        .padding(.bottom, 12)
+        .padding(.bottom, 8)
     }
-
+    
     private var greetingText: String {
         let h = Calendar.current.component(.hour, from: Date())
         switch h {
         case 5..<12:  return "美好清晨 ☀️"
         case 12..<14: return "午间稍息 🌤"
-        case 14..<18: return "高效午后 🌥"
+        case 14..<18: return "高效午后 ☁️"
         case 18..<22: return "夜间沉淀 🌙"
         default:      return "静谧深夜 🌃"
         }
     }
-
-    // MARK: - Search Bar
-    private var searchBar: some View {
+    
+    private var statsText: String {
+        let today = todayMeetings.count
+        if today > 0 {
+            return "今天 \(today) 场会议 · 共 \(meetings.count) 条记录"
+        }
+        return "共 \(meetings.count) 条会议记录"
+    }
+    
+    // =======
+    // MARK: - Quick Actions
+    // =======
+    
+    private var quickActionsBar: some View {
         HStack(spacing: 12) {
+            QuickActionButton(
+                icon: "mic.fill",
+                label: "开始会议",
+                color: Design.accent,
+                style: .primary
+            ) {
+                showRecording = true
+            }
+            
+            QuickActionButton(
+                icon: "square.and.arrow.down",
+                label: "导入录音",
+                color: .secondary,
+                style: .secondary
+            ) {
+                showAudioImporter = true
+            }
+        }
+        .padding(.horizontal, Design.horizontalPadding)
+        .padding(.vertical, 12)
+    }
+    
+    // =======
+    // MARK: - Search Bar
+    // =======
+    
+    private var searchBarView: some View {
+        HStack(spacing: 10) {
             Image(systemName: "magnifyingglass")
-                .foregroundStyle(textGray.opacity(0.6))
-                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(Design.textMuted)
+                .font(.system(size: 15, weight: .medium))
+            
             TextField("搜索会议记录...", text: $searchText)
-                .font(.system(size: 16, weight: .regular))
-                .foregroundStyle(textDark)
+                .font(Design.bodyFont)
                 .autocorrectionDisabled()
+            
             if !searchText.isEmpty {
-                Button { searchText = "" } label: {
+                Button { withAnimation { searchText = "" } } label: {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(Color(.systemGray3))
                 }
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .shadow(color: .black.opacity(0.02), radius: 8, y: 4)
-        .padding(.horizontal, 24)
-        .padding(.bottom, 16)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .padding(.horizontal, Design.horizontalPadding)
+        .padding(.bottom, 8)
     }
-
-    // MARK: - Meeting List (grouped sections)
+    
+    // =======
+    // MARK: - Meeting List Content
+    // =======
+    
     private var meetingListContent: some View {
-        ScrollView(showsIndicators: false) {
-            LazyVStack(spacing: 20, pinnedViews: []) {
-                if !searchText.isEmpty {
-                    cardRows(for: filteredMeetings)
-                    Spacer().frame(height: 120)
-                } else {
-                    if !todayMeetings.isEmpty {
-                        VStack(alignment: .leading, spacing: 12) {
-                            sectionLabel("今天")
-                            cardRows(for: todayMeetings)
-                        }
-                    }
-                    if !weekMeetings.isEmpty {
-                        VStack(alignment: .leading, spacing: 12) {
-                            sectionLabel("本周")
-                            cardRows(for: weekMeetings)
-                        }
-                    }
-                    if !olderMeetings.isEmpty {
-                        VStack(alignment: .leading, spacing: 12) {
-                            sectionLabel("更早之前")
-                            cardRows(for: olderMeetings)
-                        }
-                    }
-                    Spacer().frame(height: 120)
+        LazyVStack(spacing: 16) {
+            if !searchText.isEmpty {
+                meetingCards(for: filteredMeetings)
+            } else {
+                if !todayMeetings.isEmpty {
+                    sectionGroup(title: "今天", meetings: todayMeetings)
+                }
+                if !weekMeetings.isEmpty {
+                    sectionGroup(title: "本周", meetings: weekMeetings)
+                }
+                if !olderMeetings.isEmpty {
+                    sectionGroup(title: "更早", meetings: olderMeetings)
                 }
             }
-            .padding(.top, 8)
         }
+        .padding(.top, 8)
     }
-
+    
+    private func sectionGroup(title: String, meetings: [Meeting]) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text(title)
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .foregroundStyle(Design.textMuted)
+                    .textCase(.uppercase)
+                Spacer()
+                Text("\(meetings.count)")
+                    .font(.system(size: 12, weight: .bold, design: .monospaced))
+                    .foregroundStyle(Design.textMuted)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+                    .background(Color(.systemGray5), in: Capsule())
+            }
+            .padding(.horizontal, Design.horizontalPadding + 4)
+            
+            meetingCards(for: meetings)
+        }
+        .padding(.bottom, 8)
+    }
+    
     @ViewBuilder
-    private func cardRows(for list: [Meeting]) -> some View {
+    private func meetingCards(for list: [Meeting]) -> some View {
         ForEach(list) { meeting in
             NavigationLink(destination: MeetingDetailView(meeting: meeting)) {
-                MeetingRowView(meeting: meeting)
+                MeetingCardView(meeting: meeting)
             }
-            .buttonStyle(PlainButtonStyle())
-            .padding(.horizontal, 24)
+            .buttonStyle(CardButtonStyle())
+            .padding(.horizontal, Design.horizontalPadding)
             .contextMenu {
-                Button(role: .destructive) { deleteMeeting(meeting) } label: {
-                    Label("删除记录", systemImage: "trash")
+                Button { /* TODO: Pin */ } label: {
+                    Label("置顶", systemImage: "pin")
                 }
-            }
-            // For swipe to delete
-            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                Divider()
                 Button(role: .destructive) { deleteMeeting(meeting) } label: {
                     Label("删除", systemImage: "trash")
                 }
             }
         }
     }
-
-    private func sectionLabel(_ title: String) -> some View {
-        Text(title)
-            .font(.system(size: 14, weight: .bold, design: .rounded))
-            .foregroundStyle(textGray.opacity(0.8))
-            .padding(.horizontal, 28)
-            .padding(.top, 8)
-    }
-
-    // MARK: - Empty State
+    
+    // =======
+    // MARK: - Empty States
+    // =======
+    
     private var emptyStateView: some View {
         VStack(spacing: 24) {
-            Spacer().frame(height: 60)
+            Spacer().frame(height: 48)
             
             ZStack {
                 Circle()
-                    .fill(Color.white)
+                    .fill(
+                        LinearGradient(
+                            colors: [Design.accent.opacity(0.12), Design.accent.opacity(0.04)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
                     .frame(width: 120, height: 120)
-                    .shadow(color: .black.opacity(0.03), radius: 20, y: 10)
                 
-                Image(systemName: "waveform")
+                Image(systemName: "waveform.badge.plus")
                     .font(.system(size: 44, weight: .light))
-                    .foregroundStyle(textGray.opacity(0.4))
+                    .foregroundStyle(Design.accent.opacity(0.6))
             }
-
-            VStack(spacing: 8) {
-                Text("暂无录音记录")
-                    .font(.system(size: 20, weight: .semibold, design: .rounded))
-                    .foregroundStyle(textDark)
-
-                Text("所有的思绪与会议，都将在这里被妥善保存。\n点击下方按钮，留住这一刻的声音。")
-                    .font(.system(size: 15, weight: .regular))
-                    .foregroundStyle(textGray)
+            
+            VStack(spacing: 10) {
+                Text("开始你的第一次会议")
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .foregroundStyle(Design.textTitle)
+                
+                Text("所有会议纪要都将被 AI 自动整理，\n帮你回顾每一个关键时刻。")
+                    .font(Design.bodyFont)
+                    .foregroundStyle(Design.textBody)
                     .multilineTextAlignment(.center)
                     .lineSpacing(4)
             }
             .padding(.horizontal, 40)
             
+            Button {
+                showRecording = true
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "mic.fill")
+                    Text("开始录音")
+                        .fontWeight(.semibold)
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 28)
+                .padding(.vertical, 14)
+                .background(Design.accent, in: Capsule())
+            }
+            .padding(.top, 8)
+            
             Spacer()
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity)
     }
-
-    // MARK: - FAB
-    private var newMeetingButton: some View {
-        Button { showRecording = true } label: {
-            HStack(spacing: 12) {
-                Image(systemName: "mic.fill")
-                    .font(.system(size: 20, weight: .bold))
-                Text("开始录音")
-                    .font(.system(size: 17, weight: .bold, design: .rounded))
-            }
-            .foregroundColor(.white)
-            .padding(.horizontal, 32)
-            .padding(.vertical, 18)
-            .background(primaryBlue)
-            .clipShape(Capsule())
-            .shadow(color: primaryBlue.opacity(0.3), radius: 16, y: 8)
+    
+    private var noResultsView: some View {
+        VStack(spacing: 16) {
+            Spacer().frame(height: 48)
+            Image(systemName: "doc.text.magnifyingglass")
+                .font(.system(size: 40, weight: .light))
+                .foregroundStyle(Design.textMuted)
+            Text("未找到相关记录")
+                .font(.system(size: 17, weight: .semibold, design: .rounded))
+                .foregroundStyle(Design.textBody)
+            Text("尝试修改搜索关键词")
+                .font(.system(size: 14))
+                .foregroundStyle(Design.textMuted)
+            Spacer()
         }
-        .padding(.bottom, 32)
+        .frame(maxWidth: .infinity)
     }
-
-    // MARK: - Delete
+    
+    // =======
+    // MARK: - FAB
+    // =======
+    
+    private var fabButton: some View {
+        Button { showRecording = true } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "mic.fill")
+                    .font(.system(size: 18, weight: .bold))
+                Text("开始录音")
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 28)
+            .padding(.vertical, 16)
+            .background(
+                LinearGradient(
+                    colors: [Design.accent, Design.accent.opacity(0.85)],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                ),
+                in: Capsule()
+            )
+            .shadow(color: Design.accent.opacity(0.35), radius: 16, y: 8)
+        }
+        .padding(.bottom, 28)
+        .opacity(meetings.isEmpty ? 0 : 1)
+    }
+    
+    // =======
+    // MARK: - Actions
+    // =======
+    
     private func deleteMeeting(_ meeting: Meeting) {
-        withAnimation {
+        withAnimation(.easeInOut(duration: 0.3)) {
             if let url = meeting.audioFileURL { try? FileManager.default.removeItem(at: url) }
             modelContext.delete(meeting)
         }
     }
-
-    // MARK: - Import Audio File
+    
     private func importAudioFile(result: Result<[URL], Error>) {
         guard case .success(let urls) = result, let sourceURL = urls.first else { return }
-
         guard sourceURL.startAccessingSecurityScopedResource() else { return }
         defer { sourceURL.stopAccessingSecurityScopedResource() }
-
+        
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
         let recordingsDir = docs.appendingPathComponent("Recordings")
         try? FileManager.default.createDirectory(at: recordingsDir, withIntermediateDirectories: true)
-
+        
         let timestamp = Int(Date().timeIntervalSince1970 * 1000)
         let ext = sourceURL.pathExtension.isEmpty ? "m4a" : sourceURL.pathExtension
         let fileName = "imported_\(timestamp).\(ext)"
         let destURL = recordingsDir.appendingPathComponent(fileName)
-
+        
         do {
             try FileManager.default.copyItem(at: sourceURL, to: destURL)
         } catch {
             print("[Import] Failed to copy audio: \(error)")
             return
         }
-
+        
         let meeting = Meeting(title: "导入: \(sourceURL.deletingPathExtension().lastPathComponent)", date: Date())
         meeting.audioFileName = fileName
         meeting.status = .completed
@@ -311,20 +430,50 @@ struct MeetingListView: View {
     }
 }
 
-// MARK: - Meeting Row Card
-struct MeetingRowView: View {
-    let meeting: Meeting
+// MARK: - Quick Action Button Component
+
+private struct QuickActionButton: View {
+    let icon: String
+    let label: String
+    let color: Color
+    let style: ActionStyle
+    let action: () -> Void
     
-    private let primaryBlue = Color(red: 0/255, green: 132/255, blue: 255/255)
-    private let textDark = Color(red: 26/255, green: 26/255, blue: 26/255)
-    private let textGray = Color(red: 102/255, green: 102/255, blue: 102/255)
+    enum ActionStyle { case primary, secondary }
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 15, weight: .bold))
+                Text(label)
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .foregroundStyle(style == .primary ? .white : Design.textTitle)
+            .background(
+                style == .primary
+                    ? AnyShapeStyle(Design.accent)
+                    : AnyShapeStyle(.ultraThinMaterial)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .shadow(color: style == .primary ? Design.accent.opacity(0.25) : .clear, radius: 8, y: 4)
+        }
+    }
+}
+
+// MARK: - Meeting Card View Component
+
+struct MeetingCardView: View {
+    let meeting: Meeting
     
     private var statusColor: Color {
         switch meeting.status {
         case .recording:    return .red
         case .transcribing: return .orange
         case .summarizing:  return .purple
-        case .completed:    return primaryBlue
+        case .completed:    return Design.accent
         case .failed:       return Color(.systemGray)
         }
     }
@@ -350,13 +499,22 @@ struct MeetingRowView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            // Header: Title & Status Pill
-            HStack(alignment: .top, spacing: 12) {
-                Text(meeting.title.isEmpty ? "未命名记录" : meeting.title)
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
-                    .foregroundStyle(textDark)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
+            // Header: Title & Status
+            HStack(alignment: .top, spacing: 10) {
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(statusColor.opacity(meeting.status == .completed ? 0.5 : 1.0))
+                    .frame(width: 4, height: 44)
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(meeting.title.isEmpty ? "未命名记录" : meeting.title)
+                        .font(.system(size: 17, weight: .bold, design: .rounded))
+                        .foregroundStyle(Design.textTitle)
+                        .lineLimit(2)
+                    
+                    Text(relativeDate)
+                        .font(Design.captionFont)
+                        .foregroundStyle(Design.textMuted)
+                }
                 
                 Spacer(minLength: 8)
                 
@@ -365,96 +523,101 @@ struct MeetingRowView: View {
                 }
             }
             
-            // Preview Content
+            // Summary preview
             if !meeting.summary.isEmpty {
                 Text(meeting.summary)
-                    .font(.system(size: 15, weight: .regular))
-                    .foregroundStyle(textGray)
+                    .font(.system(size: 14, weight: .regular))
+                    .foregroundStyle(Design.textBody)
                     .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .lineSpacing(2)
             } else if !meeting.transcript.isEmpty {
                 Text(meeting.transcript)
-                    .font(.system(size: 15, weight: .regular))
-                    .foregroundStyle(textGray)
+                    .font(.system(size: 14, weight: .regular))
+                    .foregroundStyle(Design.textBody)
                     .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            } else {
-                Text(meeting.status == .completed ? "无摘要内容" : "正在处理数据...")
-                    .font(.system(size: 15, weight: .regular))
-                    .foregroundStyle(textGray.opacity(0.5))
-                    .italic()
+                    .lineSpacing(2)
             }
             
-            // Bottom Meta Row
-            HStack(alignment: .center) {
-                HStack(spacing: 6) {
-                    Image(systemName: "calendar")
-                        .font(.system(size: 13))
-                    Text(relativeDate)
-                        .font(.system(size: 13, weight: .medium))
-                }
-                .foregroundStyle(textGray.opacity(0.8))
-                
+            // Bottom row
+            HStack(alignment: .center, spacing: 16) {
                 if meeting.duration > 0 {
-                    Spacer().frame(width: 16)
-                    HStack(spacing: 6) {
-                        Image(systemName: "clock")
-                            .font(.system(size: 13))
-                        Text(meeting.formattedDuration)
-                            .font(.system(size: 13, weight: .medium, design: .monospaced))
+                    HStack(spacing: 4) {
+                        Image(systemName: "clock").font(.system(size: 12))
+                        Text(meeting.formattedDuration).font(.system(size: 12, weight: .medium, design: .monospaced))
                     }
-                    .foregroundStyle(textGray.opacity(0.8))
+                    .foregroundStyle(Design.textMuted)
+                }
+                
+                if !meeting.tingwuNotes.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: "waveform.circle").font(.system(size: 12))
+                        Text("智能纪要").font(.system(size: 12, weight: .medium))
+                    }
+                    .foregroundStyle(.teal)
                 }
                 
                 Spacer()
                 
-                // Action Items Badge
                 if !meeting.actionItems.isEmpty {
                     let done = meeting.actionItems.filter(\.isCompleted).count
                     let total = meeting.actionItems.count
-                    let isAllDone = done == total
+                    let allDone = done == total
                     
                     HStack(spacing: 4) {
-                        Image(systemName: isAllDone ? "checkmark.circle.fill" : "checklist")
+                        Image(systemName: allDone ? "checkmark.circle.fill" : "checklist")
                             .font(.system(size: 12))
                         Text("\(done)/\(total)")
                             .font(.system(size: 12, weight: .bold, design: .rounded))
                     }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(isAllDone ? Color.green.opacity(0.1) : primaryBlue.opacity(0.1))
-                    .foregroundStyle(isAllDone ? Color.green : primaryBlue)
+                    .background(allDone ? Color.green.opacity(0.1) : Design.accent.opacity(0.08))
+                    .foregroundStyle(allDone ? .green : Design.accent)
                     .clipShape(Capsule())
                 }
+                
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Design.textMuted)
             }
         }
-        .padding(20)
-        .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .shadow(color: .black.opacity(0.03), radius: 15, y: 8)
+        .padding(Design.cardPadding)
+        .background(Design.bgCard)
+        .clipShape(RoundedRectangle(cornerRadius: Design.cardRadius, style: .continuous))
+        .shadow(color: Design.cardShadow, radius: 10, y: 4)
     }
     
     @ViewBuilder
     private var statusPill: some View {
         HStack(spacing: 4) {
             if meeting.status == .recording {
-                Circle()
-                    .fill(Color.red)
-                    .frame(width: 6, height: 6)
+                Circle().fill(Color.red).frame(width: 6, height: 6)
             } else {
-                Image(systemName: "arrow.triangle.2.circlepath")
-                    .font(.system(size: 10, weight: .bold))
+                ProgressView().scaleEffect(0.6)
             }
             Text(statusLabel)
                 .font(.system(size: 11, weight: .bold, design: .rounded))
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
         .background(statusColor.opacity(0.1))
         .foregroundStyle(statusColor)
         .clipShape(Capsule())
     }
 }
+
+// MARK: - Card Button Style
+
+private struct CardButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
+            .opacity(configuration.isPressed ? 0.9 : 1.0)
+            .animation(.easeInOut(duration: 0.15), value: configuration.isPressed)
+    }
+}
+
+// MARK: - Preview
 
 #Preview {
     MeetingListView()
