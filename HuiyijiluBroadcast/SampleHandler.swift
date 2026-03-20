@@ -15,7 +15,7 @@ import AVFoundation
 class SampleHandler: RPBroadcastSampleHandler {
 
     // MARK: - App Group Config
-    static let appGroupID = "group.chenxi.yunque"
+    static let appGroupID = "group.com.test.testwatch"
     static let audioFileName = "broadcast_recording.m4a"
     static let recordingFlagFile = "is_recording"  // exists while recording
     static let debugLogFile = "broadcast_debug.log"
@@ -74,13 +74,15 @@ class SampleHandler: RPBroadcastSampleHandler {
 
     override func broadcastStarted(withSetupInfo setupInfo: [String: NSObject]?) {
         sampleCount = 0
-        
+
         // Clear previous debug log
         if let url = debugLogURL {
             try? FileManager.default.removeItem(at: url)
         }
-        
-        debugLog("broadcastStarted")
+
+        let ownBundleID = Bundle.main.bundleIdentifier ?? "unknown"
+        debugLog("broadcastStarted — extension bundle ID: \(ownBundleID)")
+        debugLog("ℹ️  主 App 需要在 BroadcastPickerView.preferredExtension 中设置为: \(ownBundleID)")
         
         // Verify shared container is accessible
         if let containerURL = sharedContainerURL {

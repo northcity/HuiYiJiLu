@@ -23,6 +23,8 @@ struct BroadcastPickerView: UIViewRepresentable {
         let picker = RPSystemBroadcastPickerView(frame: CGRect(x: 0, y: 0, width: 60, height: 60))
         picker.preferredExtension = preferredExtension
         picker.showsMicrophoneButton = showsMicrophoneButton
+        print("[BroadcastPicker] ✅ preferredExtension set to: \(preferredExtension)")
+        print("[BroadcastPicker] 🗒 showsMicrophoneButton: \(showsMicrophoneButton)")
         // Make the built-in button invisible — we overlay our own styled button
         for subview in picker.subviews {
             if let button = subview as? UIButton {

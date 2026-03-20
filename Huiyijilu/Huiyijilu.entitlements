@@ -10,7 +10,7 @@
 	</array>
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.chenxi.yunque</string>
+		<string>group.com.test.testwatch</string>
 	</array>
 </dict>
 </plist>

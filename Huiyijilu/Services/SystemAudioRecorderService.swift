@@ -28,12 +28,20 @@ class SystemAudioRecorderService: NSObject, ObservableObject {
     @Published var hasPendingAudio = false
 
     // MARK: - Constants
-    static let appGroupID = "group.chenxi.yunque"
+    static let appGroupID = "group.com.test.testwatch"
     static let audioFileName = "broadcast_recording.m4a"
     static let recordingFlagFile = "is_recording"
     static let debugLogFile = "broadcast_debug.log"
-    /// Must match the value in HuiyijiluBroadcast target's bundle id in .pbxproj
-    static let broadcastExtensionBundleID = "com.chenxi.yunqueji.postcast"
+    /// Must match the PRODUCT_BUNDLE_IDENTIFIER of the HuiyijiluBroadcast target in project.pbxproj.
+    /// Debug:   com.ceshi.ceshimainapp.watchkitapp.widget
+    /// Release: com.ceshi.ceshimainapp.widget
+    #if DEBUG
+    static let broadcastExtensionBundleID = "com.ceshi.ceshimainapp.watchkitapp.widget"
+    static let currentBuildConfig = "DEBUG"
+    #else
+    static let broadcastExtensionBundleID = "com.ceshi.ceshimainapp.widget"
+    static let currentBuildConfig = "RELEASE"
+    #endif
 
     // MARK: - Internal
     private var timer: Timer?
@@ -78,6 +86,8 @@ class SystemAudioRecorderService: NSObject, ObservableObject {
         super.init()
         log("Device supports recording: \(RPScreenRecorder.shared().isAvailable)")
         log("App Group configured: \(sharedContainerURL != nil)")
+        log("📌 broadcastExtensionBundleID = \(Self.broadcastExtensionBundleID)")
+        log("📌 Build config: \(Self.currentBuildConfig)")
         if let url = sharedContainerURL {
             log("Shared container: \(url.path)")
         } else {
