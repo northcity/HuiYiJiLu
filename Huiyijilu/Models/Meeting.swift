@@ -9,8 +9,11 @@ import SwiftData
 /// Meeting status enum
 enum MeetingStatus: String, Codable {
     case recording = "recording"
+    case saved = "saved"                  // 录音已保存（终态之一）
     case transcribing = "transcribing"
+    case transcribed = "transcribed"      // 转录完成（终态之一）
     case summarizing = "summarizing"
+    case processing = "processing"        // AI 大模型处理中
     case completed = "completed"
     case failed = "failed"
 }
@@ -31,6 +34,15 @@ final class Meeting {
     var tingwuNotes: String = ""            // output from TingWu meeting smart notes
     var tingwuDataId: String = ""           // TingWu task dataId (for polling)
     var tingwuRawResults: String = ""       // Raw JSON results from TingWu (for detail view)
+
+    // === 新增字段（v2 重构） ===
+    var languageCode: String = "zh"             // 录音时选择的语言 (zh/en/ja/ko/yue/auto)
+    var bookmarksJSON: String = "[]"            // 录音打点 JSON [RecordingBookmark]
+    var sourceType: String = "microphone"       // 来源: microphone / system / import
+    var transcriptProvider: String = ""         // 转录来源: "" / local / paraformer-v2 / fun-asr / tingwu
+    var isTranscribed: Bool = false
+    var isAIProcessed: Bool = false
+    var asrRawResult: String = ""               // ASR 原始 JSON 结果（含时间戳、说话人等）
 
     @Relationship(deleteRule: .cascade)
     var actionItems: [ActionItem] = []
@@ -53,6 +65,24 @@ final class Meeting {
             if let data = try? JSONEncoder().encode(newValue),
                let str = String(data: data, encoding: .utf8) {
                 keyPoints = str
+            }
+        }
+    }
+
+    /// 录音打点列表（存储为 JSON）
+    var bookmarksList: [RecordingBookmark] {
+        get {
+            guard !bookmarksJSON.isEmpty,
+                  let data = bookmarksJSON.data(using: .utf8),
+                  let list = try? JSONDecoder().decode([RecordingBookmark].self, from: data) else {
+                return []
+            }
+            return list
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue),
+               let str = String(data: data, encoding: .utf8) {
+                bookmarksJSON = str
             }
         }
     }

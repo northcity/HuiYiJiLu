@@ -26,6 +26,13 @@ final class SettingsViewModel: ObservableObject {
     @AppStorage("speech_language")   var speechLanguage: String = "zh-Hans"
     @AppStorage("segment_duration")  var segmentDuration: Double = 30.0
     
+    // MARK: ASR 转录设置
+    @AppStorage("asr_model")                  var asrModel: String = "paraformer-v2"
+    @AppStorage("auto_transcribe")             var autoTranscribe: Bool = false
+    @AppStorage("enable_speaker_diarization")  var enableSpeakerDiarization: Bool = true
+    @AppStorage("enable_multi_language")       var enableMultiLanguage: Bool = false
+    @AppStorage("recording_language")          var recordingLanguage: String = "zh"
+    
     // MARK: 会议纪要
     @AppStorage("default_template")  var defaultTemplate: String = "standard"
     @AppStorage("auto_title")        var autoTitle: Bool = true
@@ -52,6 +59,10 @@ final class SettingsViewModel: ObservableObject {
     @Published var showOSSSecret = false
     @Published var apiTestStatus: String = ""
     @Published var showClearDataAlert = false
+
+    // MARK: Developer Mode
+    @AppStorage("developer_mode_enabled") var developerModeEnabled: Bool = false
+    @Published var versionTapCount = 0
     
     var selectedProvider: AIProvider {
         get { AIProvider(rawValue: aiProvider) ?? .dashScope }
@@ -87,8 +98,11 @@ struct SettingsView: View {
             Form {
                 aiSection
                 recordingSection
+                asrSection
                 meetingNotesSection
-                cloudServicesSection
+                if vm.developerModeEnabled {
+                    cloudServicesSection
+                }
                 dataSection
                 aboutSection
             }
@@ -157,7 +171,9 @@ struct SettingsView: View {
         } header: {
             Label("AI 智能", systemImage: "brain.head.profile")
         } footer: {
-            Text("录音结束后自动调用 AI 分析会议内容，生成摘要和行动项。切换提供商需在「云服务配置」中填写对应密钥。")
+            Text(vm.developerModeEnabled
+                 ? "录音结束后自动调用 AI 分析会议内容，生成摘要和行动项。切换提供商需在「云服务配置」中填写对应密钥。"
+                 : "录音结束后自动调用 AI 分析会议内容，生成摘要和行动项。")
         }
     }
     
@@ -202,7 +218,57 @@ struct SettingsView: View {
         } header: {
             Label("录音与转写", systemImage: "waveform")
         } footer: {
-            Text("麦克风模式录制现场声音，系统内录模式可捕获设备内的音频（需 ReplayKit 权限）。分段时长影响本地语音识别的刷新频率。")
+            Text("麦克风模式录制现场声音，系统内录模式可捕获设备内的音频（需 ReplayKit 权限）。")
+        }
+    }
+    
+    // =========================================================================
+    // MARK: - 🌐 AI 转录设置
+    // =========================================================================
+    
+    private var asrSection: some View {
+        Section {
+            // 转录模型
+            Picker(selection: $vm.asrModel) {
+                Text("Paraformer V2（最便宜）").tag("paraformer-v2")
+                Text("Fun-ASR（中文更强）").tag("fun-asr")
+                Text("本地识别（免费）").tag("local")
+            } label: {
+                Label("转录引擎", systemImage: "waveform.badge.mic")
+            }
+            
+            // 自动转录
+            Toggle(isOn: $vm.autoTranscribe) {
+                Label("录音结束后自动转录", systemImage: "bolt.fill")
+            }
+            
+            // 说话人分离
+            Toggle(isOn: $vm.enableSpeakerDiarization) {
+                Label("说话人识别", systemImage: "person.2.fill")
+            }
+            
+            // 默认语言
+            Picker(selection: $vm.recordingLanguage) {
+                Text("中文").tag("zh")
+                Text("英文").tag("en")
+                Text("中英混合").tag("zh-en")
+                Text("日语").tag("ja")
+                Text("韩语").tag("ko")
+                Text("粤语").tag("yue")
+                Text("自动检测").tag("auto")
+            } label: {
+                Label("默认语言", systemImage: "globe")
+            }
+        } header: {
+            Label("AI 转录", systemImage: "text.badge.checkmark")
+        } footer: {
+            if vm.asrModel == "local" {
+                Text("本地识别使用 iOS 内置语音识别，免费但质量有限。云端转录需配置 DashScope API Key。")
+            } else if vm.asrModel == "paraformer-v2" {
+                Text("Paraformer V2: 0.00008元/秒，1小时会议约 0.29 元。支持中/英/日/韩/德/法/俄多语言和方言识别。")
+            } else {
+                Text("Fun-ASR: 0.00022元/秒，1小时会议约 0.79 元。中文识别更强，噪声鲁棒性更好。")
+            }
         }
     }
     
@@ -260,28 +326,6 @@ struct SettingsView: View {
                 }
             }
             
-            // 通义听悟
-            NavigationLink {
-                TingWuConfigView(vm: vm)
-            } label: {
-                HStack {
-                    Label("通义听悟", systemImage: "waveform.circle.fill")
-                    Spacer()
-                    configStatusBadge(configured: vm.isTingwuConfigured)
-                }
-            }
-            
-            // 百炼工作流
-            NavigationLink {
-                BailianConfigView(vm: vm)
-            } label: {
-                HStack {
-                    Label("百炼工作流", systemImage: "gearshape.2.fill")
-                    Spacer()
-                    configStatusBadge(configured: !vm.workflowAppId.isEmpty || !Secrets.bailianWorkflowAppId.isEmpty)
-                }
-            }
-            
             // OSS 存储
             NavigationLink {
                 OSSConfigView(vm: vm)
@@ -292,10 +336,33 @@ struct SettingsView: View {
                     configStatusBadge(configured: vm.isOSSConfigured)
                 }
             }
+            
+            // 通义听悟（高级功能，仅开发者模式显示）
+            if vm.developerModeEnabled {
+                NavigationLink {
+                    TingWuConfigView(vm: vm)
+                } label: {
+                    HStack {
+                        Label("通义听悟（高级）", systemImage: "waveform.circle.fill")
+                        Spacer()
+                        configStatusBadge(configured: vm.isTingwuConfigured)
+                    }
+                }
+                
+                NavigationLink {
+                    BailianConfigView(vm: vm)
+                } label: {
+                    HStack {
+                        Label("百炼工作流（高级）", systemImage: "gearshape.2.fill")
+                        Spacer()
+                        configStatusBadge(configured: !vm.workflowAppId.isEmpty || !Secrets.bailianWorkflowAppId.isEmpty)
+                    }
+                }
+            }
         } header: {
             Label("云服务配置", systemImage: "cloud.fill")
         } footer: {
-            Text("配置阿里云相关服务的密钥。如果在 Secrets.swift 中已预设密钥，此处可留空。")
+            Text("配置阿里云相关服务的密钥。DashScope API Key 同时用于 AI 大模型和语音转录。")
         }
     }
     
@@ -339,7 +406,21 @@ struct SettingsView: View {
                 Text(appVersion)
                     .foregroundStyle(Color(.systemGray))
             }
-            
+            .contentShape(Rectangle())
+            .onTapGesture {
+                vm.versionTapCount += 1
+                if vm.versionTapCount >= 5 && !vm.developerModeEnabled {
+                    vm.developerModeEnabled = true
+                    vm.versionTapCount = 0
+                }
+            }
+
+            if vm.developerModeEnabled {
+                Toggle(isOn: $vm.developerModeEnabled) {
+                    Label("开发者模式", systemImage: "hammer.fill")
+                }
+            }
+
             Link(destination: URL(string: "https://example.com/privacy")!) {
                 Label("隐私政策", systemImage: "hand.raised")
             }
@@ -348,6 +429,10 @@ struct SettingsView: View {
             }
         } header: {
             Label("关于", systemImage: "info.circle")
+        } footer: {
+            if !vm.developerModeEnabled {
+                Text("连续点击版本号 5 次可开启开发者模式。")
+            }
         }
     }
     

@@ -174,6 +174,33 @@ final class AIConfig {
         resolve(udKey: "oss_bucket_name", secret: Secrets.ossBucketName)
     }
     
+    // MARK: - ASR 转录配置
+    
+    /// ASR 模型名称（paraformer-v2 / fun-asr / local）
+    var asrModel: String {
+        UserDefaults.standard.string(forKey: "asr_model") ?? "paraformer-v2"
+    }
+    
+    /// 默认录音语言
+    var recordingLanguage: String {
+        UserDefaults.standard.string(forKey: "recording_language") ?? "zh"
+    }
+    
+    /// 是否启用说话人分离
+    var enableSpeakerDiarization: Bool {
+        UserDefaults.standard.bool(forKey: "enable_speaker_diarization")
+    }
+    
+    /// 是否录音结束后自动转录
+    var autoTranscribe: Bool {
+        UserDefaults.standard.bool(forKey: "auto_transcribe")
+    }
+    
+    /// ASR API Key（复用 DashScope API Key）
+    var asrAPIKey: String {
+        dashScopeAPIKey
+    }
+    
     // MARK: - Private Helpers
     
     /// 优先使用 UserDefaults 的值（用户在设置页输入的），其次使用 Secrets.swift 的值

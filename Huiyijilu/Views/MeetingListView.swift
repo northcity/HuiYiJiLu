@@ -78,9 +78,15 @@ struct MeetingListView: View {
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 0) {
                         headerView
+
+                        // Daily insight card
+                        if !meetings.isEmpty {
+                            dailyInsightCard
+                        }
+
                         quickActionsBar
                         searchBarView
-                        
+
                         if meetings.isEmpty {
                             emptyStateView
                         } else if filteredMeetings.isEmpty {
@@ -167,9 +173,79 @@ struct MeetingListView: View {
     }
     
     // =======
+    // MARK: - Daily Insight Card
+    // =======
+
+    private var dailyInsightCard: some View {
+        let todayCount = todayMeetings.count
+        let allPendingItems = meetings.flatMap { $0.actionItems }.filter { !$0.isCompleted }
+        let pendingCount = allPendingItems.count
+        let processingCount = meetings.filter { $0.status != .completed && $0.status != .failed && $0.status != .saved && $0.status != .transcribed }.count
+
+        let insightText: String = {
+            var parts: [String] = []
+            if todayCount > 0 {
+                parts.append("今天 \(todayCount) 场会议")
+            }
+            if pendingCount > 0 {
+                parts.append("\(pendingCount) 个待办未完成")
+            }
+            if processingCount > 0 {
+                parts.append("\(processingCount) 个正在处理")
+            }
+            if parts.isEmpty {
+                return "暂无待处理事项，开始新的会议吧"
+            }
+            return parts.joined(separator: "，") + "。"
+        }()
+
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 14, weight: .semibold))
+                Text("今日洞察")
+                    .font(.subheadline)
+                    .fontWeight(.bold)
+            }
+            .foregroundStyle(.white)
+
+            Text(insightText)
+                .font(.subheadline)
+                .foregroundStyle(.white.opacity(0.9))
+                .lineSpacing(3)
+
+            if pendingCount > 0 {
+                HStack(spacing: 4) {
+                    Text("查看待办")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 10, weight: .bold))
+                }
+                .foregroundStyle(.white.opacity(0.8))
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [Color(red: 0.13, green: 0.47, blue: 1.0), Color(red: 0.38, green: 0.35, blue: 0.95)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .shadow(color: Color(red: 0.13, green: 0.47, blue: 1.0).opacity(0.3), radius: 12, y: 6)
+        )
+        .padding(.horizontal, 20)
+        .padding(.vertical, 8)
+    }
+
+    // =======
     // MARK: - Quick Actions
     // =======
-    
+
     private var quickActionsBar: some View {
         HStack(spacing: 12) {
             QuickActionButton(
@@ -424,7 +500,8 @@ struct MeetingListView: View {
         
         let meeting = Meeting(title: "导入: \(sourceURL.deletingPathExtension().lastPathComponent)", date: Date())
         meeting.audioFileName = fileName
-        meeting.status = .completed
+        meeting.status = .saved
+        meeting.sourceType = "import"
         modelContext.insert(meeting)
         try? modelContext.save()
     }
@@ -471,8 +548,11 @@ struct MeetingCardView: View {
     private var statusColor: Color {
         switch meeting.status {
         case .recording:    return .red
+        case .saved:        return .green
         case .transcribing: return .orange
+        case .transcribed:  return .teal
         case .summarizing:  return .purple
+        case .processing:   return .purple
         case .completed:    return Design.accent
         case .failed:       return Color(.systemGray)
         }
@@ -481,8 +561,11 @@ struct MeetingCardView: View {
     private var statusLabel: String {
         switch meeting.status {
         case .recording:    return "录音中"
+        case .saved:        return "待转录"
         case .transcribing: return "转写中"
+        case .transcribed:  return "已转录"
         case .summarizing:  return "处理中"
+        case .processing:   return "AI 处理中"
         case .completed:    return "已完成"
         case .failed:       return "失败"
         }
@@ -518,7 +601,7 @@ struct MeetingCardView: View {
                 
                 Spacer(minLength: 8)
                 
-                if meeting.status != .completed {
+                if meeting.status != .completed && meeting.status != .saved {
                     statusPill
                 }
             }
@@ -592,6 +675,13 @@ struct MeetingCardView: View {
         HStack(spacing: 4) {
             if meeting.status == .recording {
                 Circle().fill(Color.red).frame(width: 6, height: 6)
+            } else if meeting.status == .transcribed {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 8))
+                    .foregroundStyle(.teal)
+            } else if meeting.status == .failed {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 8))
             } else {
                 ProgressView().scaleEffect(0.6)
             }
