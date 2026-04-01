@@ -1,10 +1,10 @@
 # � 云雀记 (LarkNote) — 项目架构记忆文档
 
-> 最后更新: 2026-03-17 | Xcode 26.2 | iOS 18.0+ | SwiftUI + SwiftData
+> 最后更新: 2026-04-01 | Xcode 26.2 | iOS 18.0+ | SwiftUI + SwiftData
 
 ---
 
-**最后更新**: 2026-03-17 
+**最后更新**: 2026-04-01
 
 ## 📋 项目基本信息
 
@@ -65,28 +65,33 @@ Huiyijilu/                          ← Xcode 项目根目录
 │   ├── Assets.xcassets/            ← 图标 + 颜色
 │   │
 │   ├── Models/
-│   │   ├── Meeting.swift           ← @Model 核心数据模型 (状态机: recording→completed)
+│   │   ├── Meeting.swift           ← @Model 核心数据模型 (状态机: recording→saved→transcribed→completed)
 │   │   ├── ActionItem.swift        ← @Model 行动项 (@Relationship → Meeting)
+│   │   ├── RecordingBookmark.swift ← Codable 录音书签 (flag/note/photo) [新增]
 │   │   └── RecordingActivity.swift ← ActivityAttributes (灵动岛 LiveActivity)
 │   │
 │   ├── Services/
 │   │   ├── AIService.swift         ← AI 摘要 (Qwen/DashScope, OpenAI兼容)
+│   │   ├── AliyunASRService.swift  ← 阿里云 DashScope ASR (paraformer-v2/fun-asr) [新增]
 │   │   ├── AudioRecorderService.swift ← 麦克风录音 (AVAudioRecorder)
 │   │   ├── SystemAudioRecorderService.swift ← 内录管理 (广播扩展生命周期 + ActivityKit)
-│   │   ├── TranscriptionService.swift ← 本地语音转文字 (SFSpeechRecognizer)
-│   │   ├── BailianWorkflowService.swift ← 百炼工作流 (会议图文纪要, SSE)
+│   │   ├── MeetingProcessingService.swift ← 转录 + AI 处理编排 (重构为两阶段)
+│   │   ├── TranscriptionService.swift ← 本地语音转文字 (SFSpeechRecognizer, 备用)
+│   │   ├── BailianWorkflowService.swift ← 百炼工作流 (代码保留, UI 已隐藏)
 │   │   └── OSSUploadService.swift  ← 阿里云 OSS 上传 (UserDefaults 凭证)
 │   │
 │   └── Views/
 │       ├── MeetingListView.swift   ← 首页 (问候+日期分组+卡片+FAB)
-│       ├── MeetingDetailView.swift ← 详情页 (转写/摘要/行动项/播放器/SafariView)
-│       ├── RecordingView.swift     ← 全屏录音 (麦克风/内录双模式)
-│       ├── SettingsView.swift      ← 设置 (AI/百炼/OSS 配置)
+│       ├── MeetingDetailView.swift ← 详情页 (转录入口 + AI 任务选择 + 播放器)
+│       ├── RecordingView.swift     ← 全屏录音 (竞品风格重写, 录音纯保存)
+│       ├── SettingsView.swift      ← 设置 (AI/ASR/OSS 配置, 百炼/通义听悟隐藏)
 │       └── Components/
 │           ├── AudioPlayerView.swift     ← 音频播放器
 │           ├── BroadcastPickerView.swift  ← RPSystemBroadcastPickerView 封装
+│           ├── CircularWaveView.swift    ← 录音圆形呼吸波形动画 [新增]
 │           ├── HTMLView.swift            ← WKWebView HTML 渲染
 │           ├── MarkdownTextView.swift    ← AttributedString Markdown
+│           ├── RecordingToolbar.swift    ← 录音工具栏 (书签/备注/拍照) [新增]
 │           └── SafariView.swift          ← SFSafariViewController 封装
 │
 ├── HuiyijiluBroadcast/             ← 广播上传扩展 target (ReplayKit)
@@ -128,9 +133,10 @@ Huiyijilu/                          ← Xcode 项目根目录
 
 | 服务 | 用途 | 配置方式 |
 |---|---|---|
-| **DashScope (通义千问)** | AI 摘要/标题/行动项 | UserDefaults: `ai_api_key`, `ai_base_url`, `ai_model` |
-| **百炼工作流** | 会议图文纪要 HTML | UserDefaults: `bailian_workflow_app_id` |
-| **阿里云 OSS** | 音频文件上传 | UserDefaults: `oss_access_key_id`, `oss_access_key_secret`, `oss_endpoint`, `oss_bucket_name` |
+| **DashScope (通义千问)** | AI 摘要/标题/行动项 + ASR 语音转文字 | UserDefaults: `ai_api_key`, `ai_base_url`, `ai_model` |
+| **DashScope ASR** | 录音文件转文字 (paraformer-v2 / fun-asr) | 复用 `ai_api_key`，独立配置 `asr_model` |
+| **阿里云 OSS** | 音频文件上传（ASR 需要公网 URL） | UserDefaults: `oss_access_key_id`, `oss_access_key_secret`, `oss_endpoint`, `oss_bucket_name` |
+| **百炼工作流** | 会议图文纪要 HTML（代码保留，UI 已隐藏） | UserDefaults: `bailian_workflow_app_id` |
 | **EdgeOne** | 图文纪要 HTML 托管 | 百炼工作流自动部署 |
 
 ### 无第三方依赖
@@ -155,13 +161,44 @@ Huiyijilu/                          ← Xcode 项目根目录
     var keyPoints: [String]     // AI 关键点
     var statusRaw: String       // MeetingStatus enum raw
     var richNotes: String?      // 百炼图文纪要 HTML
+    // ——— 2026-04-01 新增字段 ———
+    var languageCode: String    // 录音语言 (zh/en/zh-en/ja/ko/yue/auto)
+    var bookmarksJSON: String   // JSON 序列化的 [RecordingBookmark]
+    var sourceType: String      // microphone / system / import
+    var transcriptProvider: String  // "" / "local" / "paraformer-v2" / "fun-asr"
+    var isTranscribed: Bool     // 是否已完成 ASR 转录
+    var isAIProcessed: Bool     // 是否已完成 AI 处理
+    var asrRawResult: String    // ASR 原始 JSON (含说话人/时间戳)
+    var ossAudioURL: String?    // OSS 公网 URL (ASR 需要)
     @Relationship var actionItems: [ActionItem]
 }
 
 enum MeetingStatus: String {
-    case recording, transcribing, summarizing, completed, failed
+    case recording              // 录音中
+    case saved                  // 已保存，待转录 [新增]
+    case transcribing           // 转录中
+    case transcribed            // 已转录，待 AI 处理 [新增]
+    case summarizing            // AI 处理中
+    case processing             // AI 处理中（统一别名）[新增]
+    case completed              // 全部完成
+    case failed                 // 失败
 }
 ```
+
+### RecordingBookmark (Codable, 新增)
+
+```swift
+struct RecordingBookmark: Codable, Identifiable, Equatable {
+    var id: UUID
+    var timestamp: TimeInterval  // 录音内时间戳（秒）
+    var label: String            // 自定义标签
+    var type: BookmarkType       // .flag / .note / .photo
+    var photoFileName: String?   // Documents/MeetingPhotos/xxx.jpg
+}
+enum BookmarkType: String, Codable { case flag, note, photo }
+```
+
+Meeting.bookmarksList 是对 `bookmarksJSON` 的 computed 读写属性，和 `keyPointsList` 模式一致。
 
 ### ActionItem (@Model)
 
@@ -180,21 +217,35 @@ enum MeetingStatus: String {
 
 ## 五、核心流程
 
-### 录音 → 处理 → 保存
+### 新三段式流程（2026-04-01 重构后）
 
 ```
-用户选择模式
+阶段一：录音（纯录音，不做任何 AI）
 ├── 麦克风模式: AVAudioRecorder → 本地 m4a
 └── 内录模式: RPBroadcastSampleHandler → App Group → 拷贝到本地
+录音中可操作：旗帜书签 / 文字备注 / 拍照存档
+↓ 用户点击停止
 
-↓ 录音完成
+阶段二：AI 转录（用户主动触发，在详情页）
+1. 上传音频到阿里云 OSS (OSSUploadService)
+2. 提交 DashScope ASR 任务 (AliyunASRService)
+   POST https://dashscope.aliyuncs.com/api/v1/services/audio/asr/transcription
+   模型: paraformer-v2 (默认) / fun-asr (可选)
+3. 轮询任务状态 (GET /tasks/{task_id}，间隔 2s)
+4. 下载 transcription_url JSON → 解析 → 存入 transcript
+5. Meeting.status → .transcribed
+备用: 本地 SFSpeechRecognizer (TranscriptionService)
 
-1. 语音转文字 (TranscriptionService, SFSpeechRecognizer, 本地)
-2. AI 生成摘要 (AIService, DashScope API, 远程)
-   → title, summary, keyPoints, actionItems
-3. 更新 SwiftData Meeting 对象
-4. (可选) 百炼工作流 (BailianWorkflowService)
-   → 上传 OSS → 调用工作流 → SSE 获取 HTML → 保存 richNotes
+阶段三：AI 处理（用户勾选任务，按需触发）
+可选任务: 生成标题 / 摘要 / 章节 / 行动项 / 决策 / 润色
+调用: AIService (DashScope Qwen-Plus 或其他模型)
+Meeting.status → .completed
+```
+
+### 旧流程（已废弃，代码标记 @available(*, deprecated)）
+
+```
+RecordingView.stopAndProcess() → 立即转写 → AI分析 → dismiss()
 ```
 
 ### 内录 (Broadcast Extension) 通信架构
@@ -284,6 +335,10 @@ enum MeetingStatus: String {
 | `oss_endpoint` | String | OSS Endpoint | "oss-cn-shanghai.aliyuncs.com" |
 | `oss_bucket_name` | String | OSS Bucket 名称 | "" |
 | `recording_mode` | String | 录音模式 (麦克风/内录) | "麦克风" |
+| `asr_model` | String | ASR 模型 (paraformer-v2/fun-asr/local) | "paraformer-v2" |
+| `recording_language` | String | 默认录音语言代码 | "zh" |
+| `enable_speaker_diarization` | Bool | 启用说话人分离 | false |
+| `auto_transcribe` | Bool | 录音结束后自动触发转录 | false |
 
 ---
 
@@ -294,6 +349,7 @@ enum MeetingStatus: String {
 | 录音文件 | `Documents/Recordings/meeting_xxx.m4a` 或 `meeting_sys_xxx.m4a` |
 | 广播录音 (共享容器) | `App Group Container/broadcast_recording.m4a` |
 | 广播状态标记 | `App Group Container/is_recording` |
+| 录音书签照片 | `Documents/MeetingPhotos/photo_xxx.jpg` |
 | SwiftData | `默认容器 (自动管理)` |
 
 ---
@@ -308,3 +364,54 @@ enum MeetingStatus: String {
 | `5566c2a` | 功能 — ReplayKit 系统内录 (RPScreenRecorder) |
 | `3172149` | 功能 — Broadcast Upload Extension 内录 |
 | `0780d6e` | 功能 — Dynamic Island 灵动岛 + 修复内录检测 |
+| 2026-04-01 | 重构 — 录音流程全面重构（三段式 + DashScope ASR） |
+
+---
+
+## 十一、录音流程重构记录（2026-04-01）
+
+### 核心变更
+
+**前：** 录音结束 → 自动转录 + AI 分析 → 用户必须等待
+**后：** 录音结束 → **立即保存** → AI 转录（按需）→ AI 处理（按需）
+
+### 新建文件
+
+| 文件 | 作用 |
+|---|---|
+| `Models/RecordingBookmark.swift` | 录音书签（旗帜/备注/拍照）数据模型 |
+| `Views/Components/CircularWaveView.swift` | 录音页圆形呼吸动画，4层同心圆 |
+| `Views/Components/RecordingToolbar.swift` | 录音工具栏，支持旗帜书签/文字备注/拍照 |
+| `Services/AliyunASRService.swift` | DashScope ASR 异步转录（提交→轮询→下载） |
+
+### 修改文件
+
+| 文件 | 主要变更 |
+|---|---|
+| `Models/Meeting.swift` | +8 新字段，+3 新状态 (.saved/.transcribed/.processing) |
+| `Views/RecordingView.swift` | 全面重写：竞品风格 UI，语言选择器，16根音量条，REC 闪烁，圆形波形 |
+| `Services/MeetingProcessingService.swift` | 重构为 `transcribe()` + `processWithAI()` 两阶段方法 |
+| `Views/MeetingDetailView.swift` | +转录入口区 / AI 任务勾选区 / 处理状态覆盖层 |
+| `Views/SettingsView.swift` | +ASR 配置分区，百炼/通义听悟隐藏到开发者模式 |
+| `Views/MeetingListView.swift` | 新状态颜色/标签/状态能 |
+| `Config/AIConfig.swift` | +ASR 相关属性 (asrModel/asrAPIKey/recordingLanguage 等) |
+
+### ASR 模型对比
+
+| 模型 | 计费 | 适用场景 | UI 状态 |
+|---|---|---|---|
+| paraformer-v2 | ¥0.00008/秒 | 多语言，企业会议 | 默认选项 |
+| fun-asr | ¥0.00022/秒 | 中文优化，噪音鲁棒 | 隐藏（预留） |
+| 本地 | 免费 | 离线 | 备用入口 |
+
+### 录音 UI 语言选项
+
+| 代码 | 显示 | API language_hints |
+|---|---|---|
+| zh | 中文 | ["zh"] |
+| en | English | ["en"] |
+| zh-en | 中英混合 | ["zh", "en"] |
+| ja | 日语 | ["ja"] |
+| ko | 韩语 | ["ko"] |
+| yue | 粤语 | ["yue"] |
+| auto | 自动识别 | nil (省略参数) |
