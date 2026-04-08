@@ -11,22 +11,28 @@ import SwiftData
 import UniformTypeIdentifiers
 
 // MARK: - Design Tokens
+// Aligned with Apple DESIGN.md — see /DESIGN.md in project root
+// Source: https://github.com/VoltAgent/awesome-design-md/tree/main/design-md/apple
 
 private enum Design {
-    static let accent     = Color(red: 0.13, green: 0.47, blue: 1.0)   // #2178FF
+    /// Apple Blue #0071e3 — the singular interactive accent; all other elements are neutral
+    static let accent     = Color(red: 0.0, green: 0.443, blue: 0.890)
     static let bgPrimary  = Color(.systemGroupedBackground)
     static let bgCard     = Color(.systemBackground)
     static let textTitle  = Color(.label)
     static let textBody   = Color(.secondaryLabel)
     static let textMuted  = Color(.tertiaryLabel)
-    static let cardRadius: CGFloat = 20
-    static let cardPadding: CGFloat = 20
+    /// 16pt — Apple card radius is 8–16pt; 20pt is too soft for precision UI
+    static let cardRadius: CGFloat = 16
+    static let cardPadding: CGFloat = 18
     static let horizontalPadding: CGFloat = 20
-    static let cardShadow = Color.black.opacity(0.06)
-    static let titleFont  = Font.system(size: 34, weight: .bold, design: .rounded)
-    static let headlineFont = Font.system(size: 15, weight: .semibold, design: .rounded)
+    /// Apple soft shadow: rgba(0,0,0,0.22) 3px 5px 30px — use 0.07 for neutral cards
+    static let cardShadow = Color.black.opacity(0.07)
+    /// SF Pro standard (not .rounded) — Apple's precision UI typography
+    static let titleFont  = Font.system(size: 34, weight: .bold)
+    static let headlineFont = Font.system(size: 15, weight: .semibold)
     static let bodyFont   = Font.system(size: 15, weight: .regular)
-    static let captionFont = Font.system(size: 13, weight: .medium)
+    static let captionFont = Font.system(size: 13, weight: .regular)
 }
 
 // MARK: - Home View
@@ -128,7 +134,7 @@ struct MeetingListView: View {
                 Text("云雀记")
                     .font(Design.titleFont)
                     .foregroundStyle(Design.textTitle)
-                    .tracking(-0.5)
+                    .tracking(-1.0)  // Apple: negative tracking at display sizes
                 
                 if !meetings.isEmpty {
                     Text(statsText)
@@ -228,15 +234,10 @@ struct MeetingListView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
         .background(
+            // Apple DESIGN.md: solid color only — no gradients on UI backgrounds
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [Color(red: 0.13, green: 0.47, blue: 1.0), Color(red: 0.38, green: 0.35, blue: 0.95)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .shadow(color: Color(red: 0.13, green: 0.47, blue: 1.0).opacity(0.3), radius: 12, y: 6)
+                .fill(Design.accent)
+                .shadow(color: Design.accent.opacity(0.22), radius: 15, x: 3, y: 5)
         )
         .padding(.horizontal, 20)
         .padding(.vertical, 8)
@@ -373,13 +374,8 @@ struct MeetingListView: View {
             
             ZStack {
                 Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [Design.accent.opacity(0.12), Design.accent.opacity(0.04)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                    // Apple DESIGN.md: no gradient — solid fill with opacity
+                    .fill(Design.accent.opacity(0.08))
                     .frame(width: 120, height: 120)
                 
                 Image(systemName: "waveform.badge.plus")
@@ -452,15 +448,9 @@ struct MeetingListView: View {
             .foregroundStyle(.white)
             .padding(.horizontal, 28)
             .padding(.vertical, 16)
-            .background(
-                LinearGradient(
-                    colors: [Design.accent, Design.accent.opacity(0.85)],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                ),
-                in: Capsule()
-            )
-            .shadow(color: Design.accent.opacity(0.35), radius: 16, y: 8)
+            // Apple DESIGN.md: solid Apple Blue — no gradient on CTA buttons
+            .background(Design.accent, in: Capsule())
+            .shadow(color: Design.accent.opacity(0.22), radius: 15, x: 3, y: 5)
         }
         .padding(.bottom, 28)
         .opacity(meetings.isEmpty ? 0 : 1)
@@ -535,7 +525,8 @@ private struct QuickActionButton: View {
                     : AnyShapeStyle(.ultraThinMaterial)
             )
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .shadow(color: style == .primary ? Design.accent.opacity(0.25) : .clear, radius: 8, y: 4)
+            // Apple DESIGN.md: soft diffused shadow — x:3 y:5 radius:15
+            .shadow(color: style == .primary ? Design.accent.opacity(0.22) : .clear, radius: 15, x: 3, y: 5)
         }
     }
 }
@@ -667,7 +658,8 @@ struct MeetingCardView: View {
         .padding(Design.cardPadding)
         .background(Design.bgCard)
         .clipShape(RoundedRectangle(cornerRadius: Design.cardRadius, style: .continuous))
-        .shadow(color: Design.cardShadow, radius: 10, y: 4)
+        // Apple DESIGN.md: soft diffused shadow — x:3 y:5 radius:15
+        .shadow(color: Design.cardShadow, radius: 15, x: 3, y: 5)
     }
     
     @ViewBuilder

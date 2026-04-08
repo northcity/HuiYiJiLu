@@ -245,7 +245,7 @@ struct MeetingDetailView: View {
         .background(
             RoundedRectangle(cornerRadius: 12)
                 .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.04), radius: 6, y: 2)
+                .shadow(color: .black.opacity(0.07), radius: 15, x: 3, y: 5)
         )
         .padding(.horizontal)
     }
@@ -257,7 +257,7 @@ struct MeetingDetailView: View {
             VStack(spacing: 8) {
                 Image(systemName: "waveform.badge.mic")
                     .font(.system(size: 36))
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(Color(red: 0.0, green: 0.443, blue: 0.890))
 
                 Text("录音已保存，可以开始转录")
                     .font(.headline)
@@ -272,14 +272,18 @@ struct MeetingDetailView: View {
                 startTranscription()
             } label: {
                 HStack(spacing: 8) {
-                    Image(systemName: "mic.badge.xmark")
+                    Image(systemName: "waveform")
                     Text("开始 AI 转录")
                         .fontWeight(.semibold)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
                 .foregroundStyle(.white)
-                .background(Color.blue, in: RoundedRectangle(cornerRadius: 12))
+                // Apple DESIGN.md: Apple Blue #0071e3, no gradient
+                .background(Color(red: 0.0, green: 0.443, blue: 0.890),
+                            in: RoundedRectangle(cornerRadius: 12))
+                .shadow(color: Color(red: 0.0, green: 0.443, blue: 0.890).opacity(0.22),
+                        radius: 15, x: 3, y: 5)
             }
 
             // 本地转录备选
@@ -293,8 +297,9 @@ struct MeetingDetailView: View {
         }
         .padding(20)
         .background(
+            // Apple DESIGN.md: subtle tint fill — 0.04 opacity
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color.blue.opacity(0.04))
+                .fill(Color(red: 0.0, green: 0.443, blue: 0.890).opacity(0.04))
         )
         .padding(.horizontal)
     }
@@ -302,10 +307,13 @@ struct MeetingDetailView: View {
     // MARK: - AI Processing Section (for .transcribed meetings)
 
     private var aiProcessingSection: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        // Apple DESIGN.md: Apple Blue is the singular accent color
+        let appleBlue = Color(red: 0.0, green: 0.443, blue: 0.890)
+
+        return VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Image(systemName: "sparkles")
-                    .foregroundStyle(.purple)
+                    .foregroundStyle(appleBlue)
                 Text("AI 处理")
                     .font(.headline)
                 Spacer()
@@ -326,7 +334,7 @@ struct MeetingDetailView: View {
                 } label: {
                     HStack(spacing: 10) {
                         Image(systemName: selectedAITasks.contains(task) ? "checkmark.square.fill" : "square")
-                            .foregroundStyle(selectedAITasks.contains(task) ? .purple : .secondary)
+                            .foregroundStyle(selectedAITasks.contains(task) ? appleBlue : .secondary)
                         Image(systemName: task.icon)
                             .font(.system(size: 14))
                             .frame(width: 20)
@@ -352,16 +360,18 @@ struct MeetingDetailView: View {
                 .padding(.vertical, 14)
                 .foregroundStyle(.white)
                 .background(
-                    selectedAITasks.isEmpty ? Color.gray : Color.purple,
+                    selectedAITasks.isEmpty ? Color.gray : appleBlue,
                     in: RoundedRectangle(cornerRadius: 12)
                 )
+                .shadow(color: selectedAITasks.isEmpty ? .clear : appleBlue.opacity(0.22),
+                        radius: 15, x: 3, y: 5)
             }
             .disabled(selectedAITasks.isEmpty)
         }
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color.purple.opacity(0.04))
+                .fill(appleBlue.opacity(0.04))
         )
         .padding(.horizontal)
     }
@@ -468,7 +478,7 @@ struct MeetingDetailView: View {
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
+                .shadow(color: .black.opacity(0.07), radius: 15, x: 3, y: 5)
         )
     }
 
@@ -542,7 +552,7 @@ struct MeetingDetailView: View {
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
+                .shadow(color: .black.opacity(0.07), radius: 15, x: 3, y: 5)
         )
     }
 
@@ -621,7 +631,7 @@ struct MeetingDetailView: View {
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
+                .shadow(color: .black.opacity(0.07), radius: 15, x: 3, y: 5)
         )
     }
 
@@ -693,7 +703,7 @@ struct MeetingDetailView: View {
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
+                .shadow(color: .black.opacity(0.07), radius: 15, x: 3, y: 5)
         )
     }
 
@@ -760,7 +770,7 @@ struct MeetingDetailView: View {
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
+                .shadow(color: .black.opacity(0.07), radius: 15, x: 3, y: 5)
         )
         .padding(.horizontal)
     }
@@ -794,7 +804,7 @@ struct MeetingDetailView: View {
                 .background(
                     RoundedRectangle(cornerRadius: 16)
                         .fill(Color(.systemBackground))
-                        .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
+                        .shadow(color: .black.opacity(0.07), radius: 15, x: 3, y: 5)
                 )
                 .padding(.horizontal)
             }
@@ -846,7 +856,7 @@ struct MeetingDetailView: View {
                 .background(
                     RoundedRectangle(cornerRadius: 16)
                         .fill(Color(.systemBackground))
-                        .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
+                        .shadow(color: .black.opacity(0.07), radius: 15, x: 3, y: 5)
                 )
                 .padding(.horizontal)
             }
